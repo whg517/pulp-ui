@@ -27,6 +27,9 @@ dist-ssr
 
 # Python
 __pycache__/
+
+# oh-my-claudecode
+.omc/
 *.py[cod]
 *$py.class
 *.so
