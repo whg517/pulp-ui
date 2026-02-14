@@ -1,0 +1,65 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: docker.io/library/postgres:15
+    container_name: pulp-postgres
+    environment:
+      POSTGRES_USER: pulp
+      POSTGRES_PASSWORD: pulp
+      POSTGRES_DB: pulp
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pulp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: docker.io/library/redis:7
+    container_name: pulp-redis
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  pulp:
+    image: ghcr.io/pulp/pulp:latest
+    container_name: pulp-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PULP_DB_HOST: postgres
+      PULP_DB_PORT: 5432
+      PULP_DB_USER: pulp
+      PULP_DB_PASSWORD: pulp
+      PULP_DB_NAME: pulp
+      PULP_REDIS_HOST: redis
+      PULP_REDIS_PORT: 6379
+      PULP_SECRET_KEY: "your-secret-key-change-in-production"
+      PULP_ADMIN_PASSWORD: admin
+      PULP_CONTENT_ORIGIN: "http://localhost:8080"
+      DJANGO_SETTINGS_MODULE: pulpcore.app.settings
+    ports:
+      - "8080:8080"
+    volumes:
+      - pulp_data:/var/lib/pulp
+      - ./pulp-settings.py:/etc/pulp/settings.py:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/pulp/api/v3/status/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  postgres_data:
+  redis_data:
+  pulp_data:

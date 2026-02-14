@@ -1,0 +1,90 @@
+import { Link, useLocation } from 'react-router-dom'
+import {
+  LayoutDashboard,
+  Package,
+  Globe,
+  Server,
+  ListTodo,
+  FileBox,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { useState } from 'react'
+
+const navigation = [
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Repositories', href: '/repositories', icon: Package },
+  { name: 'Remotes', href: '/remotes', icon: Globe },
+  { name: 'Distributions', href: '/distributions', icon: Server },
+  { name: 'Tasks', href: '/tasks', icon: ListTodo },
+  { name: 'Content', href: '/content', icon: FileBox },
+]
+
+export function Sidebar() {
+  const location = useLocation()
+  const [collapsed, setCollapsed] = useState(false)
+
+  return (
+    <aside
+      className={cn(
+        'flex flex-col border-r bg-card transition-all duration-300',
+        collapsed ? 'w-16' : 'w-64'
+      )}
+    >
+      <div className="flex h-16 items-center justify-between border-b px-4">
+        {!collapsed && (
+          <Link to="/" className="flex items-center gap-2">
+            <Package className="h-6 w-6 text-primary" />
+            <span className="font-semibold text-lg">Pulp UI</span>
+          </Link>
+        )}
+        {collapsed && <Package className="h-6 w-6 text-primary mx-auto" />}
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn('h-8 w-8', collapsed && 'mx-auto mt-2')}
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+        </Button>
+      </div>
+
+      <nav className="flex-1 space-y-1 p-2">
+        {navigation.map((item) => {
+          const isActive = location.pathname === item.href ||
+            (item.href !== '/' && location.pathname.startsWith(item.href))
+          return (
+            <Link
+              key={item.name}
+              to={item.href}
+              className={cn(
+                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                isActive
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+                collapsed && 'justify-center px-2'
+              )}
+              title={collapsed ? item.name : undefined}
+            >
+              <item.icon className="h-5 w-5 shrink-0" />
+              {!collapsed && <span>{item.name}</span>}
+            </Link>
+          )
+        })}
+      </nav>
+
+      <div className="border-t p-2">
+        <div
+          className={cn(
+            'flex items-center gap-2 rounded-md px-3 py-2 text-xs text-muted-foreground',
+            collapsed && 'justify-center'
+          )}
+        >
+          {!collapsed && <span>Pulp Management UI</span>}
+        </div>
+      </div>
+    </aside>
+  )
+}
