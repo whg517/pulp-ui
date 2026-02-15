@@ -19,6 +19,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useGroups, useCreateGroup, useUpdateGroup, useDeleteGroup } from '@/hooks/useApi'
 import type { PulpGroup } from '@/types/pulp'
 
@@ -27,6 +37,7 @@ export function GroupsPage() {
   const [page, setPage] = useState(1)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingGroup, setEditingGroup] = useState<PulpGroup | null>(null)
+  const [groupToDelete, setGroupToDelete] = useState<PulpGroup | null>(null)
   const [formData, setFormData] = useState({
     name: '',
   })
@@ -53,9 +64,13 @@ export function GroupsPage() {
     setFormData({ name: group.name })
   }
 
-  const handleDelete = (href: string) => {
-    if (confirm('Are you sure you want to delete this group?')) {
-      deleteMutation.mutate(href)
+  const handleDeleteConfirm = () => {
+    if (groupToDelete) {
+      deleteMutation.mutate(groupToDelete.pulp_href, {
+        onSuccess: () => {
+          setGroupToDelete(null)
+        },
+      })
     }
   }
 
@@ -162,7 +177,7 @@ export function GroupsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDelete(group.pulp_href)}
+                          onClick={() => setGroupToDelete(group)}
                           disabled={deleteMutation.isPending}
                           title="Delete group"
                         >
@@ -249,6 +264,28 @@ export function GroupsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Group Confirmation Dialog */}
+      <AlertDialog open={!!groupToDelete} onOpenChange={() => setGroupToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Group</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete group "{groupToDelete?.name}"?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

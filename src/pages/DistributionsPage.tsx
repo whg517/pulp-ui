@@ -13,6 +13,16 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useDistributions, useDeleteDistribution } from '@/hooks/useApi'
 import type { PulpDistribution } from '@/types/pulp'
 import { formatDistanceToNow } from 'date-fns'
@@ -20,6 +30,7 @@ import { formatDistanceToNow } from 'date-fns'
 export function DistributionsPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [distributionToDelete, setDistributionToDelete] = useState<PulpDistribution | null>(null)
   const pageSize = 10
 
   const { data, isLoading, error, refetch } = useDistributions({
@@ -30,9 +41,13 @@ export function DistributionsPage() {
 
   const deleteMutation = useDeleteDistribution()
 
-  const handleDelete = (href: string, name: string) => {
-    if (confirm(`Are you sure you want to delete distribution "${name}"?`)) {
-      deleteMutation.mutate(href)
+  const handleDeleteConfirm = () => {
+    if (distributionToDelete) {
+      deleteMutation.mutate(distributionToDelete.pulp_href, {
+        onSuccess: () => {
+          setDistributionToDelete(null)
+        },
+      })
     }
   }
 
@@ -129,7 +144,7 @@ export function DistributionsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDelete(dist.pulp_href, dist.name)}
+                          onClick={() => setDistributionToDelete(dist)}
                           disabled={deleteMutation.isPending}
                           title="Delete distribution"
                         >
@@ -170,6 +185,28 @@ export function DistributionsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Distribution Confirmation Dialog */}
+      <AlertDialog open={!!distributionToDelete} onOpenChange={() => setDistributionToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Distribution</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete distribution &quot;{distributionToDelete?.name}&quot;?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

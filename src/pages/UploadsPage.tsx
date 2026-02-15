@@ -13,6 +13,16 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useUploads, useDeleteUpload } from '@/hooks/useApi'
 import type { PulpUpload } from '@/types/pulp'
 import { formatDistanceToNow } from 'date-fns'
@@ -20,6 +30,7 @@ import { formatDistanceToNow } from 'date-fns'
 export function UploadsPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [uploadToDelete, setUploadToDelete] = useState<PulpUpload | null>(null)
   const pageSize = 10
 
   const { data, isLoading, error, refetch } = useUploads({
@@ -30,9 +41,13 @@ export function UploadsPage() {
 
   const deleteMutation = useDeleteUpload()
 
-  const handleDelete = (href: string) => {
-    if (confirm('Are you sure you want to delete this upload?')) {
-      deleteMutation.mutate(href)
+  const handleDeleteConfirm = () => {
+    if (uploadToDelete) {
+      deleteMutation.mutate(uploadToDelete.pulp_href, {
+        onSuccess: () => {
+          setUploadToDelete(null)
+        },
+      })
     }
   }
 
@@ -125,7 +140,7 @@ export function UploadsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDelete(upload.pulp_href)}
+                        onClick={() => setUploadToDelete(upload)}
                         disabled={deleteMutation.isPending}
                         title="Delete upload"
                       >
@@ -165,6 +180,28 @@ export function UploadsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Upload Confirmation Dialog */}
+      <AlertDialog open={!!uploadToDelete} onOpenChange={() => setUploadToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Upload</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this upload?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

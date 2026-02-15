@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { ArrowLeft, Clock, CheckCircle, XCircle, AlertCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -5,6 +6,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useTask, useCancelTask } from '@/hooks/useApi'
 import { format, formatDistanceToNow } from 'date-fns'
 
@@ -29,13 +40,18 @@ const stateColors: Record<string, 'success' | 'default' | 'secondary' | 'destruc
 export function TaskDetailPage() {
   const { href } = useParams<{ href: string }>()
   const decodedHref = href ? decodeURIComponent(href) : ''
+  const [showCancelDialog, setShowCancelDialog] = useState(false)
 
   const { data: task, isLoading, error } = useTask(decodedHref)
   const cancelMutation = useCancelTask()
 
-  const handleCancel = () => {
-    if (task && confirm('Are you sure you want to cancel this task?')) {
-      cancelMutation.mutate(task.pulp_href)
+  const handleCancelConfirm = () => {
+    if (task) {
+      cancelMutation.mutate(task.pulp_href, {
+        onSuccess: () => {
+          setShowCancelDialog(false)
+        },
+      })
     }
   }
 
@@ -108,7 +124,7 @@ export function TaskDetailPage() {
           </div>
         </div>
         {isRunning && (
-          <Button variant="destructive" onClick={handleCancel} disabled={cancelMutation.isPending}>
+          <Button variant="destructive" onClick={() => setShowCancelDialog(true)} disabled={cancelMutation.isPending}>
             Cancel Task
           </Button>
         )}
@@ -238,6 +254,28 @@ export function TaskDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Cancel Task Confirmation Dialog */}
+      <AlertDialog open={showCancelDialog} onOpenChange={() => setShowCancelDialog(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Task</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel this task?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Cancel Task
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

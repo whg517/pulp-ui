@@ -55,7 +55,7 @@ export function DistributionEditDialog({ open, onOpenChange, distribution }: Dis
       isSubmitting={updateMutation.isPending}
       submitLabel="Save Changes"
     >
-      <DistributionFormFields form={form} isSubmitting={updateMutation.isPending} />
+      <DistributionFormFields isSubmitting={updateMutation.isPending} />
     </FormDialog>
   )
 }

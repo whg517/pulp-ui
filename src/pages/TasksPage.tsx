@@ -14,6 +14,16 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useTasks, useCancelTask } from '@/hooks/useApi'
 import type { PulpTask } from '@/types/pulp'
 import { formatDistanceToNow } from 'date-fns'
@@ -31,6 +41,7 @@ export function TasksPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [stateFilter, setStateFilter] = useState<string>('')
+  const [taskToCancel, setTaskToCancel] = useState<PulpTask | null>(null)
   const pageSize = 10
 
   const { data, isLoading, error, refetch } = useTasks({
@@ -43,9 +54,13 @@ export function TasksPage() {
 
   const cancelMutation = useCancelTask()
 
-  const handleCancel = (href: string) => {
-    if (confirm('Are you sure you want to cancel this task?')) {
-      cancelMutation.mutate(href)
+  const handleCancelConfirm = () => {
+    if (taskToCancel) {
+      cancelMutation.mutate(taskToCancel.pulp_href, {
+        onSuccess: () => {
+          setTaskToCancel(null)
+        },
+      })
     }
   }
 
@@ -147,7 +162,7 @@ export function TasksPage() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleCancel(task.pulp_href)}
+                            onClick={() => setTaskToCancel(task)}
                             disabled={cancelMutation.isPending}
                             title="Cancel task"
                           >
@@ -189,6 +204,28 @@ export function TasksPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Cancel Task Confirmation Dialog */}
+      <AlertDialog open={!!taskToCancel} onOpenChange={() => setTaskToCancel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Task</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cancel this task?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Cancel Task
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

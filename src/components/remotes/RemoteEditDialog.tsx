@@ -64,7 +64,7 @@ export function RemoteEditDialog({ open, onOpenChange, remote }: RemoteEditDialo
       isSubmitting={updateMutation.isPending}
       submitLabel="Save Changes"
     >
-      <RemoteFormFields form={form} isSubmitting={updateMutation.isPending} />
+      <RemoteFormFields isSubmitting={updateMutation.isPending} />
     </FormDialog>
   )
 }

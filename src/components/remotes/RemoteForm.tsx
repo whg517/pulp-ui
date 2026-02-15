@@ -32,11 +32,9 @@ export const defaultRemoteValues: RemoteFormData = {
   connect_timeout: undefined,
 }
 
-import type { UseFormReturn } from 'react-hook-form'
 import { FormInput, FormSelect, FormTextarea, FormSwitch } from '@/components/forms'
 
 interface RemoteFormFieldsProps {
-  form: UseFormReturn<RemoteFormData>
   isSubmitting?: boolean
 }
 
@@ -154,5 +152,3 @@ export function RemoteFormFields({ isSubmitting }: RemoteFormFieldsProps) {
   )
 }
 
-// Default export for backward compatibility (exports the type)
-export default { RemoteFormFields }

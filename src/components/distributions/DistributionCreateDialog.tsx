@@ -41,7 +41,7 @@ export function DistributionCreateDialog({ open, onOpenChange }: DistributionCre
       isSubmitting={createMutation.isPending}
       submitLabel="Create"
     >
-      <DistributionFormFields form={form} isSubmitting={createMutation.isPending} />
+      <DistributionFormFields isSubmitting={createMutation.isPending} />
     </FormDialog>
   )
 }

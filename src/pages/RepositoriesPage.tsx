@@ -14,6 +14,16 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useRepositories, useDeleteRepository, useSyncRepository } from '@/hooks/useApi'
 import { RepositoryCreateDialog } from '@/components/repositories'
 import type { PulpRepository } from '@/types/pulp'
@@ -22,6 +32,7 @@ import { formatDistanceToNow } from 'date-fns'
 export function RepositoriesPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [repositoryToDelete, setRepositoryToDelete] = useState<PulpRepository | null>(null)
   const pageSize = 10
 
   const { data, isLoading, error, refetch } = useRepositories({
@@ -33,9 +44,13 @@ export function RepositoriesPage() {
   const deleteMutation = useDeleteRepository()
   const syncMutation = useSyncRepository()
 
-  const handleDelete = (href: string, name: string) => {
-    if (confirm(`Are you sure you want to delete repository "${name}"?`)) {
-      deleteMutation.mutate(href)
+  const handleDeleteConfirm = () => {
+    if (repositoryToDelete) {
+      deleteMutation.mutate(repositoryToDelete.pulp_href, {
+        onSuccess: () => {
+          setRepositoryToDelete(null)
+        },
+      })
     }
   }
 
@@ -134,7 +149,7 @@ export function RepositoriesPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDelete(repo.pulp_href, repo.name)}
+                          onClick={() => setRepositoryToDelete(repo)}
                           disabled={deleteMutation.isPending}
                           title="Delete repository"
                         >
@@ -175,6 +190,28 @@ export function RepositoriesPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Repository Confirmation Dialog */}
+      <AlertDialog open={!!repositoryToDelete} onOpenChange={() => setRepositoryToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Repository</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete repository &quot;{repositoryToDelete?.name}&quot;?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

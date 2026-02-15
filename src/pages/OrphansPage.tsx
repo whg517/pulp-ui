@@ -12,12 +12,23 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useOrphans, useDeleteOrphans } from '@/hooks/useApi'
 import type { PulpOrphan } from '@/types/pulp'
 import { formatDistanceToNow } from 'date-fns'
 
 export function OrphansPage() {
   const [page, setPage] = useState(1)
+  const [showCleanupDialog, setShowCleanupDialog] = useState(false)
   const pageSize = 10
 
   const { data, isLoading, error, refetch } = useOrphans({
@@ -28,10 +39,12 @@ export function OrphansPage() {
 
   const deleteMutation = useDeleteOrphans()
 
-  const handleCleanup = () => {
-    if (confirm('Are you sure you want to cleanup all orphan content? This action cannot be undone.')) {
-      deleteMutation.mutate(undefined)
-    }
+  const handleCleanupConfirm = () => {
+    deleteMutation.mutate(undefined, {
+      onSuccess: () => {
+        setShowCleanupDialog(false)
+      },
+    })
   }
 
   const totalPages = data ? Math.ceil(data.count / pageSize) : 0
@@ -49,7 +62,7 @@ export function OrphansPage() {
         </div>
         <Button
           variant="destructive"
-          onClick={handleCleanup}
+          onClick={() => setShowCleanupDialog(true)}
           disabled={deleteMutation.isPending || !data?.count}
         >
           <Trash2 className="h-4 w-4 mr-2" />
@@ -135,6 +148,28 @@ export function OrphansPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Cleanup Orphans Confirmation Dialog */}
+      <AlertDialog open={showCleanupDialog} onOpenChange={() => setShowCleanupDialog(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cleanup All Orphans</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to cleanup all orphan content?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCleanupConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Cleanup
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -21,12 +21,10 @@ export const defaultDistributionValues: DistributionFormData = {
   content_guard: undefined,
 }
 
-import type { UseFormReturn } from 'react-hook-form'
 import { FormInput, FormSelect } from '@/components/forms'
 import { useRepositories } from '@/hooks/useApi'
 
 interface DistributionFormFieldsProps {
-  form: UseFormReturn<DistributionFormData>
   isSubmitting?: boolean
 }
 
@@ -84,5 +82,3 @@ export function DistributionFormFields({ isSubmitting }: DistributionFormFieldsP
   )
 }
 
-// Default export for backward compatibility
-export default { DistributionFormFields }

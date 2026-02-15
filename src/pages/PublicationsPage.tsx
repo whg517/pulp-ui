@@ -12,6 +12,16 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { usePublications, useDeletePublication } from '@/hooks/useApi'
 import type { PulpPublication } from '@/types/pulp'
 import { formatDistanceToNow } from 'date-fns'
@@ -19,6 +29,7 @@ import { formatDistanceToNow } from 'date-fns'
 export function PublicationsPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [publicationToDelete, setPublicationToDelete] = useState<PulpPublication | null>(null)
   const pageSize = 10
 
   const { data, isLoading, error, refetch } = usePublications({
@@ -30,9 +41,13 @@ export function PublicationsPage() {
 
   const deleteMutation = useDeletePublication()
 
-  const handleDelete = (href: string) => {
-    if (confirm('Are you sure you want to delete this publication?')) {
-      deleteMutation.mutate(href)
+  const handleDeleteConfirm = () => {
+    if (publicationToDelete) {
+      deleteMutation.mutate(publicationToDelete.pulp_href, {
+        onSuccess: () => {
+          setPublicationToDelete(null)
+        },
+      })
     }
   }
 
@@ -113,7 +128,7 @@ export function PublicationsPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDelete(publication.pulp_href)}
+                        onClick={() => setPublicationToDelete(publication)}
                         disabled={deleteMutation.isPending}
                         title="Delete publication"
                       >
@@ -153,6 +168,28 @@ export function PublicationsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Publication Confirmation Dialog */}
+      <AlertDialog open={!!publicationToDelete} onOpenChange={() => setPublicationToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Publication</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this publication?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

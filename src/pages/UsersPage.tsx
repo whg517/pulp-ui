@@ -1,4 +1,7 @@
 import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { Search, RefreshCw, Trash2, Plus, Pencil, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,25 +23,70 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '@/hooks/useApi'
 import type { PulpUser } from '@/types/pulp'
 import { formatDistanceToNow } from 'date-fns'
+
+const userSchema = z.object({
+  username: z.string().min(1, 'Username is required').min(3, 'Username must be at least 3 characters'),
+  email: z.string().email('Invalid email address').optional().or(z.literal('')),
+  first_name: z.string().optional(),
+  last_name: z.string().optional(),
+  is_active: z.boolean(),
+  is_staff: z.boolean(),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
+})
+
+const userEditSchema = userSchema.extend({
+  password: z.string().optional(), // Optional on edit
+})
+
+type UserFormData = z.infer<typeof userSchema>
+type UserEditFormData = z.infer<typeof userEditSchema>
 
 export function UsersPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<PulpUser | null>(null)
-  const [formData, setFormData] = useState({
-    username: '',
-    email: '',
-    first_name: '',
-    last_name: '',
-    is_active: true,
-    is_staff: false,
-    password: '',
-  })
+  const [userToDelete, setUserToDelete] = useState<PulpUser | null>(null)
   const pageSize = 10
+
+  const createForm = useForm<UserFormData>({
+    resolver: zodResolver(userSchema),
+    defaultValues: {
+      username: '',
+      email: '',
+      first_name: '',
+      last_name: '',
+      is_active: true,
+      is_staff: false,
+      password: '',
+    },
+  })
+
+  const editForm = useForm<UserEditFormData>({
+    resolver: zodResolver(userEditSchema),
+    defaultValues: {
+      username: '',
+      email: '',
+      first_name: '',
+      last_name: '',
+      is_active: true,
+      is_staff: false,
+      password: '',
+    },
+  })
 
   const { data, isLoading, error, refetch } = useUsers({
     username__contains: search || undefined,
@@ -52,7 +100,7 @@ export function UsersPage() {
   const deleteMutation = useDeleteUser()
 
   const handleCreate = () => {
-    setFormData({
+    createForm.reset({
       username: '',
       email: '',
       first_name: '',
@@ -66,7 +114,7 @@ export function UsersPage() {
 
   const handleEdit = (user: PulpUser) => {
     setEditingUser(user)
-    setFormData({
+    editForm.reset({
       username: user.username,
       email: user.email || '',
       first_name: user.first_name || '',
@@ -77,24 +125,28 @@ export function UsersPage() {
     })
   }
 
-  const handleDelete = (href: string) => {
-    if (confirm('Are you sure you want to delete this user?')) {
-      deleteMutation.mutate(href)
+  const handleDeleteConfirm = () => {
+    if (userToDelete) {
+      deleteMutation.mutate(userToDelete.pulp_href, {
+        onSuccess: () => {
+          setUserToDelete(null)
+        },
+      })
     }
   }
 
-  const submitCreate = () => {
-    createMutation.mutate(formData, {
+  const submitCreate = (data: UserFormData) => {
+    createMutation.mutate(data, {
       onSuccess: () => {
         setIsCreateOpen(false)
-        setFormData({ username: '', email: '', first_name: '', last_name: '', is_active: true, is_staff: false, password: '' })
+        createForm.reset()
       },
     })
   }
 
-  const submitEdit = () => {
+  const submitEdit = (data: UserEditFormData) => {
     if (editingUser) {
-      const updateData = { ...formData }
+      const updateData = { ...data }
       if (!updateData.password) {
         delete (updateData as Record<string, unknown>).password
       }
@@ -197,7 +249,7 @@ export function UsersPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDelete(user.pulp_href)}
+                          onClick={() => setUserToDelete(user)}
                           disabled={deleteMutation.isPending}
                           title="Delete user"
                         >
@@ -245,38 +297,44 @@ export function UsersPage() {
           <DialogHeader>
             <DialogTitle>Create User</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <form onSubmit={createForm.handleSubmit(submitCreate)} className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Username</label>
+              <label className="text-sm font-medium">Username *</label>
               <Input
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                {...createForm.register('username')}
                 placeholder="Username"
               />
+              {createForm.formState.errors.username && (
+                <p className="text-sm text-destructive">{createForm.formState.errors.username.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Email</label>
               <Input
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                {...createForm.register('email')}
                 placeholder="Email"
+                type="email"
               />
+              {createForm.formState.errors.email && (
+                <p className="text-sm text-destructive">{createForm.formState.errors.email.message}</p>
+              )}
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Password</label>
+              <label className="text-sm font-medium">Password *</label>
               <Input
                 type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder="Password"
+                {...createForm.register('password')}
+                placeholder="Password (min 8 characters)"
               />
+              {createForm.formState.errors.password && (
+                <p className="text-sm text-destructive">{createForm.formState.errors.password.message}</p>
+              )}
             </div>
             <div className="flex items-center gap-4">
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={formData.is_active}
-                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                  {...createForm.register('is_active')}
                   className="rounded border-gray-300"
                 />
                 <span className="text-sm">Active</span>
@@ -284,18 +342,17 @@ export function UsersPage() {
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={formData.is_staff}
-                  onChange={(e) => setFormData({ ...formData, is_staff: e.target.checked })}
+                  {...createForm.register('is_staff')}
                   className="rounded border-gray-300"
                 />
                 <span className="text-sm">Staff</span>
               </label>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-            <Button onClick={submitCreate} disabled={createMutation.isPending}>Create</Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={createMutation.isPending}>Create</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
@@ -305,38 +362,44 @@ export function UsersPage() {
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <form onSubmit={editForm.handleSubmit(submitEdit)} className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Username</label>
+              <label className="text-sm font-medium">Username *</label>
               <Input
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                {...editForm.register('username')}
                 placeholder="Username"
               />
+              {editForm.formState.errors.username && (
+                <p className="text-sm text-destructive">{editForm.formState.errors.username.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Email</label>
               <Input
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                {...editForm.register('email')}
                 placeholder="Email"
+                type="email"
               />
+              {editForm.formState.errors.email && (
+                <p className="text-sm text-destructive">{editForm.formState.errors.email.message}</p>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Password (leave empty to keep current)</label>
               <Input
                 type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                {...editForm.register('password')}
                 placeholder="New Password"
               />
+              {editForm.formState.errors.password && (
+                <p className="text-sm text-destructive">{editForm.formState.errors.password.message}</p>
+              )}
             </div>
             <div className="flex items-center gap-4">
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={formData.is_active}
-                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                  {...editForm.register('is_active')}
                   className="rounded border-gray-300"
                 />
                 <span className="text-sm">Active</span>
@@ -344,20 +407,41 @@ export function UsersPage() {
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={formData.is_staff}
-                  onChange={(e) => setFormData({ ...formData, is_staff: e.target.checked })}
+                  {...editForm.register('is_staff')}
                   className="rounded border-gray-300"
                 />
                 <span className="text-sm">Staff</span>
               </label>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingUser(null)}>Cancel</Button>
-            <Button onClick={submitEdit} disabled={updateMutation.isPending}>Save</Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditingUser(null)}>Cancel</Button>
+              <Button type="submit" disabled={updateMutation.isPending}>Save</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete User Confirmation Dialog */}
+      <AlertDialog open={!!userToDelete} onOpenChange={() => setUserToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete user "{userToDelete?.username}"?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

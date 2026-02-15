@@ -41,7 +41,7 @@ export function RemoteCreateDialog({ open, onOpenChange }: RemoteCreateDialogPro
       isSubmitting={createMutation.isPending}
       submitLabel="Create"
     >
-      <RemoteFormFields form={form} isSubmitting={createMutation.isPending} />
+      <RemoteFormFields isSubmitting={createMutation.isPending} />
     </FormDialog>
   )
 }
