@@ -46,6 +46,9 @@ export function LoginPage() {
 
       navigate('/')
     } catch (err) {
+      // Clear credentials on authentication failure
+      useAuthStore.getState().logout()
+
       if (err instanceof PulpApiError) {
         setError(err.data.detail || 'Authentication failed. Please check your credentials.')
       } else {
