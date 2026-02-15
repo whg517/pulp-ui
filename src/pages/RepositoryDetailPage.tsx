@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import { useRepository, useSyncRepository, useTasks } from '@/hooks/useApi'
+import { RepositoryEditDialog, RepositoryVersionsList } from '@/components/repositories'
 import { formatDistanceToNow, format } from 'date-fns'
 
 export function RepositoryDetailPage() {
@@ -71,13 +72,16 @@ export function RepositoryDetailPage() {
           <h1 className="text-3xl font-bold">{repository.name}</h1>
           <p className="text-muted-foreground">{repository.description || 'No description'}</p>
         </div>
-        <Button
-          onClick={handleSync}
-          disabled={!repository.remote || syncMutation.isPending}
-        >
-          <RefreshCw className={`mr-2 h-4 w-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
-          Sync Repository
-        </Button>
+        <div className="flex items-center gap-2">
+          <RepositoryEditDialog repository={repository} />
+          <Button
+            onClick={handleSync}
+            disabled={!repository.remote || syncMutation.isPending}
+          >
+            <RefreshCw className={`mr-2 h-4 w-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+            Sync Repository
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -205,6 +209,11 @@ export function RepositoryDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      <RepositoryVersionsList
+        repositoryHref={repository.pulp_href}
+        repositoryName={repository.name}
+      />
     </div>
   )
 }

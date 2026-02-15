@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Search, RefreshCw, Trash2, RefreshCcw } from 'lucide-react'
+import { Search, RefreshCw, Trash2, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -14,45 +13,46 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useRepositories, useDeleteRepository, useSyncRepository } from '@/hooks/useApi'
-import { RepositoryCreateDialog } from '@/components/repositories'
-import type { PulpRepository } from '@/types/pulp'
+import { useUploads, useDeleteUpload } from '@/hooks/useApi'
+import type { PulpUpload } from '@/types/pulp'
 import { formatDistanceToNow } from 'date-fns'
 
-export function RepositoriesPage() {
+export function UploadsPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const pageSize = 10
 
-  const { data, isLoading, error, refetch } = useRepositories({
-    name__contains: search || undefined,
+  const { data, isLoading, error, refetch } = useUploads({
     offset: (page - 1) * pageSize,
     limit: pageSize,
+    ordering: '-pulp_created',
   })
 
-  const deleteMutation = useDeleteRepository()
-  const syncMutation = useSyncRepository()
+  const deleteMutation = useDeleteUpload()
 
-  const handleDelete = (href: string, name: string) => {
-    if (confirm(`Are you sure you want to delete repository "${name}"?`)) {
+  const handleDelete = (href: string) => {
+    if (confirm('Are you sure you want to delete this upload?')) {
       deleteMutation.mutate(href)
     }
   }
 
-  const handleSync = (href: string, remote?: string) => {
-    syncMutation.mutate({ href, remote })
-  }
-
   const totalPages = data ? Math.ceil(data.count / pageSize) : 0
+
+  const formatSize = (bytes: number) => {
+    if (bytes === 0) return '0 B'
+    const k = 1024
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Repositories</h1>
-          <p className="text-muted-foreground">Manage your Pulp repositories</p>
+          <h1 className="text-3xl font-bold">Uploads</h1>
+          <p className="text-muted-foreground">Manage chunked uploads</p>
         </div>
-        <RepositoryCreateDialog />
       </div>
 
       <Card>
@@ -61,7 +61,7 @@ export function RepositoriesPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search repositories..."
+                placeholder="Search uploads..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
@@ -80,67 +80,57 @@ export function RepositoriesPage() {
               ))}
             </div>
           ) : error ? (
-            <p className="text-center text-destructive py-8">Failed to load repositories</p>
+            <p className="text-center text-destructive py-8">Failed to load uploads</p>
           ) : data?.results?.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              {search ? 'No repositories found matching your search' : 'No repositories found'}
+              {search ? 'No uploads found matching your search' : 'No uploads found'}
             </p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Remote</TableHead>
+                  <TableHead>Size</TableHead>
+                  <TableHead>Completed</TableHead>
+                  <TableHead>Chunks</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data?.results?.map((repo: PulpRepository) => (
-                  <TableRow key={repo.pulp_href}>
-                    <TableCell>
-                      <Link
-                        to={`/repositories/${encodeURIComponent(repo.pulp_href)}`}
-                        className="font-medium hover:underline"
-                      >
-                        {repo.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate text-muted-foreground">
-                      {repo.description || '-'}
+                {data?.results?.map((upload: PulpUpload) => (
+                  <TableRow key={upload.pulp_href}>
+                    <TableCell className="font-medium">
+                      {formatSize(upload.size)}
                     </TableCell>
                     <TableCell>
-                      {repo.remote ? (
-                        <Badge variant="secondary">Configured</Badge>
+                      {upload.completed ? (
+                        <Badge variant="success">
+                          <Check className="h-3 w-3 mr-1" />
+                          Yes
+                        </Badge>
                       ) : (
-                        <Badge variant="outline">None</Badge>
+                        <Badge variant="secondary">
+                          <X className="h-3 w-3 mr-1" />
+                          No
+                        </Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {formatDistanceToNow(new Date(repo.pulp_created), { addSuffix: true })}
+                      {upload.chunks?.length || 0} chunks ({formatSize(upload.chunk_size)} each)
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatDistanceToNow(new Date(upload.pulp_created), { addSuffix: true })}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleSync(repo.pulp_href, repo.remote || undefined)}
-                          disabled={!repo.remote || syncMutation.isPending}
-                          title="Sync repository"
-                        >
-                          <RefreshCcw className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(repo.pulp_href, repo.name)}
-                          disabled={deleteMutation.isPending}
-                          title="Delete repository"
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(upload.pulp_href)}
+                        disabled={deleteMutation.isPending}
+                        title="Delete upload"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

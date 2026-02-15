@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
-import { Search, RefreshCw, Trash2, RefreshCcw } from 'lucide-react'
+import { Search, RefreshCw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -12,47 +11,50 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useRepositories, useDeleteRepository, useSyncRepository } from '@/hooks/useApi'
-import { RepositoryCreateDialog } from '@/components/repositories'
-import type { PulpRepository } from '@/types/pulp'
+import { usePublications, useDeletePublication } from '@/hooks/useApi'
+import type { PulpPublication } from '@/types/pulp'
 import { formatDistanceToNow } from 'date-fns'
 
-export function RepositoriesPage() {
+export function PublicationsPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const pageSize = 10
 
-  const { data, isLoading, error, refetch } = useRepositories({
-    name__contains: search || undefined,
+  const { data, isLoading, error, refetch } = usePublications({
+    repository_version__contains: search || undefined,
     offset: (page - 1) * pageSize,
     limit: pageSize,
+    ordering: '-pulp_created',
   })
 
-  const deleteMutation = useDeleteRepository()
-  const syncMutation = useSyncRepository()
+  const deleteMutation = useDeletePublication()
 
-  const handleDelete = (href: string, name: string) => {
-    if (confirm(`Are you sure you want to delete repository "${name}"?`)) {
+  const handleDelete = (href: string) => {
+    if (confirm('Are you sure you want to delete this publication?')) {
       deleteMutation.mutate(href)
     }
   }
 
-  const handleSync = (href: string, remote?: string) => {
-    syncMutation.mutate({ href, remote })
-  }
-
   const totalPages = data ? Math.ceil(data.count / pageSize) : 0
+
+  const extractRepositoryName = (repoVersion: string | null) => {
+    if (!repoVersion) return '-'
+    const parts = repoVersion.split('/')
+    const repoIndex = parts.findIndex(p => p === 'repositories')
+    if (repoIndex >= 0 && parts.length > repoIndex + 1) {
+      return parts[repoIndex + 1] || repoVersion
+    }
+    return repoVersion
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Repositories</h1>
-          <p className="text-muted-foreground">Manage your Pulp repositories</p>
+          <h1 className="text-3xl font-bold">Publications</h1>
+          <p className="text-muted-foreground">Manage repository publications</p>
         </div>
-        <RepositoryCreateDialog />
       </div>
 
       <Card>
@@ -61,7 +63,7 @@ export function RepositoriesPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search repositories..."
+                placeholder="Search publications..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
@@ -80,67 +82,43 @@ export function RepositoriesPage() {
               ))}
             </div>
           ) : error ? (
-            <p className="text-center text-destructive py-8">Failed to load repositories</p>
+            <p className="text-center text-destructive py-8">Failed to load publications</p>
           ) : data?.results?.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
-              {search ? 'No repositories found matching your search' : 'No repositories found'}
+              {search ? 'No publications found matching your search' : 'No publications found'}
             </p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Remote</TableHead>
+                  <TableHead>Repository Version</TableHead>
+                  <TableHead>Distributions</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data?.results?.map((repo: PulpRepository) => (
-                  <TableRow key={repo.pulp_href}>
-                    <TableCell>
-                      <Link
-                        to={`/repositories/${encodeURIComponent(repo.pulp_href)}`}
-                        className="font-medium hover:underline"
-                      >
-                        {repo.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate text-muted-foreground">
-                      {repo.description || '-'}
-                    </TableCell>
-                    <TableCell>
-                      {repo.remote ? (
-                        <Badge variant="secondary">Configured</Badge>
-                      ) : (
-                        <Badge variant="outline">None</Badge>
-                      )}
+                {data?.results?.map((publication: PulpPublication) => (
+                  <TableRow key={publication.pulp_href}>
+                    <TableCell className="font-medium">
+                      {extractRepositoryName(publication.repository_version)}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {formatDistanceToNow(new Date(repo.pulp_created), { addSuffix: true })}
+                      {publication.distributions?.length || 0}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {formatDistanceToNow(new Date(publication.pulp_created), { addSuffix: true })}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleSync(repo.pulp_href, repo.remote || undefined)}
-                          disabled={!repo.remote || syncMutation.isPending}
-                          title="Sync repository"
-                        >
-                          <RefreshCcw className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(repo.pulp_href, repo.name)}
-                          disabled={deleteMutation.isPending}
-                          title="Delete repository"
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(publication.pulp_href)}
+                        disabled={deleteMutation.isPending}
+                        title="Delete publication"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}

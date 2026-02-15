@@ -8,6 +8,12 @@ import {
   FileBox,
   ChevronLeft,
   ChevronRight,
+  BookOpen,
+  Upload,
+  Trash2,
+  Cpu,
+  Users,
+  UserCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -20,6 +26,12 @@ const navigation = [
   { name: 'Distributions', href: '/distributions', icon: Server },
   { name: 'Tasks', href: '/tasks', icon: ListTodo },
   { name: 'Content', href: '/content', icon: FileBox },
+  { name: 'Publications', href: '/publications', icon: BookOpen },
+  { name: 'Uploads', href: '/uploads', icon: Upload },
+  { name: 'Orphans', href: '/orphans', icon: Trash2 },
+  { name: 'Workers', href: '/workers', icon: Cpu },
+  { name: 'Users', href: '/users', icon: UserCircle },
+  { name: 'Groups', href: '/groups', icon: Users },
 ]
 
 export function Sidebar() {

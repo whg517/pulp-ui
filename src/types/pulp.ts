@@ -127,3 +127,147 @@ export interface RepositorySyncOptions {
   remote?: string
   mirror?: boolean
 }
+
+export interface PulpPublication {
+  pulp_href: string
+  pulp_created: string
+  repository_version: string | null
+  repository: string | null
+  distributions: string[]
+}
+
+export interface PulpRepositoryVersion {
+  pulp_href: string
+  pulp_created: string
+  number: number
+  repository: string
+  base_version: string | null
+  content_summary: {
+    added: Record<string, number>
+    removed: Record<string, number>
+    present: Record<string, number>
+  }
+}
+
+export interface PulpUpload {
+  pulp_href: string
+  pulp_created: string
+  size: number
+  completed: string | null
+  chunk_size: number
+  chunks: number[]
+}
+
+export interface PulpUser {
+  pulp_href: string
+  pulp_created: string
+  username: string
+  first_name: string
+  last_name: string
+  email: string
+  is_staff: boolean
+  is_active: boolean
+  is_superuser: boolean
+  last_login: string | null
+  groups: string[]
+}
+
+export interface PulpGroup {
+  pulp_href: string
+  pulp_created: string
+  name: string
+  users: string[]
+  model_permissions: string[]
+  object_permissions: string[]
+}
+
+export interface PulpWorker {
+  pulp_href: string
+  pulp_created: string
+  name: string
+  last_heartbeat: string
+  online: boolean
+  missing: boolean
+  current_task: string | null
+}
+
+export interface PulpOrphan {
+  pulp_href: string
+  pulp_created: string
+  pulp_type: string
+  upstream_id: string | null
+  timestamp: string | null
+}
+
+export interface PulpSigningService {
+  pulp_href: string
+  pulp_created: string
+  name: string
+  public_key: string
+  pubkey_fingerprint: string
+}
+
+export interface PulpAccessPolicy {
+  pulp_href: string
+  pulp_created: string
+  name: string
+  statements: Array<{
+    action: string[]
+    effect: string
+    principal: string
+    conditions?: Record<string, unknown>
+  }>
+  creation_hooks: Array<{
+    hook: string
+    bindings: Record<string, unknown>
+  }>
+  viewset_name: string
+  customized: boolean
+}
+
+export interface PulpDomain {
+  pulp_href: string
+  pulp_created: string
+  name: string
+  description: string | null
+  storage_class: string
+  storage_settings: Record<string, unknown>
+  redirect_to_object_storage: boolean
+  hide_guarded_distributions: boolean
+}
+
+export interface PulpArtifact {
+  pulp_href: string
+  pulp_created: string
+  file: string
+  size: number
+  md5: string | null
+  sha1: string | null
+  sha224: string | null
+  sha256: string
+  sha384: string | null
+  sha512: string | null
+}
+
+export interface PulpImport {
+  pulp_href: string
+  pulp_created: string
+  task: string
+  params: {
+    path: string
+    create_repositories: boolean
+    parallel: boolean
+  }
+}
+
+export interface PulpExport {
+  pulp_href: string
+  pulp_created: string
+  task: string
+  params: {
+    start_repository_version: string
+    end_repository_version?: string
+    chunk_size?: string
+  }
+  output_file_info: Record<string, { sha256: string; size: number }>
+}

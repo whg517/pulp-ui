@@ -9,6 +9,12 @@ import { DistributionsPage } from '@/pages/DistributionsPage'
 import { TasksPage } from '@/pages/TasksPage'
 import { TaskDetailPage } from '@/pages/TaskDetailPage'
 import { ContentPage } from '@/pages/ContentPage'
+import { PublicationsPage } from '@/pages/PublicationsPage'
+import { WorkersPage } from '@/pages/WorkersPage'
+import { UsersPage } from '@/pages/UsersPage'
+import { GroupsPage } from '@/pages/GroupsPage'
+import { OrphansPage } from '@/pages/OrphansPage'
+import { UploadsPage } from '@/pages/UploadsPage'
 import { useAuthStore } from '@/stores/authStore'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -79,6 +85,30 @@ export const router = createBrowserRouter([
       {
         path: 'content',
         element: <ContentPage />,
+      },
+      {
+        path: 'publications',
+        element: <PublicationsPage />,
+      },
+      {
+        path: 'workers',
+        element: <WorkersPage />,
+      },
+      {
+        path: 'users',
+        element: <UsersPage />,
+      },
+      {
+        path: 'groups',
+        element: <GroupsPage />,
+      },
+      {
+        path: 'orphans',
+        element: <OrphansPage />,
+      },
+      {
+        path: 'uploads',
+        element: <UploadsPage />,
       },
     ],
   },
