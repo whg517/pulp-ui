@@ -1,4 +1,7 @@
 import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { Search, RefreshCw, Trash2, Plus, Pencil, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,16 +35,29 @@ import {
 import { useGroups, useCreateGroup, useUpdateGroup, useDeleteGroup } from '@/hooks/useApi'
 import type { PulpGroup } from '@/types/pulp'
 
+const groupSchema = z.object({
+  name: z.string().min(1, 'Name is required').min(2, 'Name must be at least 2 characters'),
+})
+
+type GroupFormData = z.infer<typeof groupSchema>
+
 export function GroupsPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingGroup, setEditingGroup] = useState<PulpGroup | null>(null)
   const [groupToDelete, setGroupToDelete] = useState<PulpGroup | null>(null)
-  const [formData, setFormData] = useState({
-    name: '',
-  })
   const pageSize = 10
+
+  const createForm = useForm<GroupFormData>({
+    resolver: zodResolver(groupSchema),
+    defaultValues: { name: '' },
+  })
+
+  const editForm = useForm<GroupFormData>({
+    resolver: zodResolver(groupSchema),
+    defaultValues: { name: '' },
+  })
 
   const { data, isLoading, error, refetch } = useGroups({
     name__contains: search || undefined,
@@ -55,13 +71,13 @@ export function GroupsPage() {
   const deleteMutation = useDeleteGroup()
 
   const handleCreate = () => {
-    setFormData({ name: '' })
+    createForm.reset({ name: '' })
     setIsCreateOpen(true)
   }
 
   const handleEdit = (group: PulpGroup) => {
     setEditingGroup(group)
-    setFormData({ name: group.name })
+    editForm.reset({ name: group.name })
   }
 
   const handleDeleteConfirm = () => {
@@ -74,19 +90,19 @@ export function GroupsPage() {
     }
   }
 
-  const submitCreate = () => {
-    createMutation.mutate(formData, {
+  const submitCreate = (data: GroupFormData) => {
+    createMutation.mutate(data, {
       onSuccess: () => {
         setIsCreateOpen(false)
-        setFormData({ name: '' })
+        createForm.reset()
       },
     })
   }
 
-  const submitEdit = () => {
+  const submitEdit = (data: GroupFormData) => {
     if (editingGroup) {
       updateMutation.mutate(
-        { href: editingGroup.pulp_href, data: formData },
+        { href: editingGroup.pulp_href, data },
         {
           onSuccess: () => {
             setEditingGroup(null)
@@ -225,20 +241,22 @@ export function GroupsPage() {
           <DialogHeader>
             <DialogTitle>Create Group</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <form onSubmit={createForm.handleSubmit(submitCreate)} className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Name</label>
+              <label className="text-sm font-medium">Name *</label>
               <Input
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                {...createForm.register('name')}
                 placeholder="Group name"
               />
+              {createForm.formState.errors.name && (
+                <p className="text-sm text-destructive">{createForm.formState.errors.name.message}</p>
+              )}
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
-            <Button onClick={submitCreate} disabled={createMutation.isPending}>Create</Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsCreateOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={createMutation.isPending}>Create</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
@@ -248,20 +266,22 @@ export function GroupsPage() {
           <DialogHeader>
             <DialogTitle>Edit Group</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <form onSubmit={editForm.handleSubmit(submitEdit)} className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Name</label>
+              <label className="text-sm font-medium">Name *</label>
               <Input
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                {...editForm.register('name')}
                 placeholder="Group name"
               />
+              {editForm.formState.errors.name && (
+                <p className="text-sm text-destructive">{editForm.formState.errors.name.message}</p>
+              )}
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingGroup(null)}>Cancel</Button>
-            <Button onClick={submitEdit} disabled={updateMutation.isPending}>Save</Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditingGroup(null)}>Cancel</Button>
+              <Button type="submit" disabled={updateMutation.isPending}>Save</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
