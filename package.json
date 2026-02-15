@@ -13,7 +13,13 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:real": "playwright test",
+    "test:e2e:real:ui": "playwright test --ui",
+    "test:e2e:real:debug": "playwright test --debug",
+    "e2e:docker:up": "docker-compose -f docker/docker-compose.e2e.yml up -d",
+    "e2e:docker:down": "docker-compose -f docker/docker-compose.e2e.yml down -v",
+    "e2e:docker:logs": "docker-compose -f docker/docker-compose.e2e.yml logs -f pulp"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

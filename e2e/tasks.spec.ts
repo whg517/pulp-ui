@@ -1,100 +1,79 @@
-import { test, expect } from '@playwright/test'
-import { setupApiMocks } from './mocks/api-mocks'
+import { test, expect } from './fixtures'
 
 test.describe('Tasks Monitoring Flow', () => {
-  test.beforeEach(async ({ page }) => {
-    // Setup API mocks
-    await setupApiMocks(page)
-
-    // Login first
-    await page.context().clearCookies()
-    await page.goto('/login')
-    await page.getByLabel('Username').fill('admin')
-    await page.getByLabel('Password').fill('password')
-    await page.getByRole('button', { name: 'Sign in' }).click()
-    await expect(page).toHaveURL('/')
-  })
-
-  test('displays tasks list page', async ({ page }) => {
-    await page.goto('/tasks')
+  test('displays tasks list page', async ({ authenticatedPage }) => {
+    await authenticatedPage.goto('/tasks')
 
     // Verify page header
-    await expect(page.getByRole('heading', { name: 'Tasks' })).toBeVisible()
-    await expect(page.getByText('Monitor async operations')).toBeVisible()
+    await expect(authenticatedPage.getByRole('heading', { name: 'Tasks' })).toBeVisible()
+    await expect(authenticatedPage.getByText('Monitor async operations')).toBeVisible()
 
     // Verify search input exists
-    await expect(page.getByPlaceholder('Search tasks...')).toBeVisible()
+    await expect(authenticatedPage.getByPlaceholder('Search tasks...')).toBeVisible()
   })
 
-  test('displays tasks table with correct columns', async ({ page }) => {
-    await page.goto('/tasks')
+  test('displays tasks table with correct columns', async ({ authenticatedPage }) => {
+    await authenticatedPage.goto('/tasks')
 
     // Verify table headers
-    await expect(page.getByRole('columnheader', { name: 'Name' })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'State' })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Started' })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Finished' })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Worker' })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Actions' })).toBeVisible()
+    await expect(authenticatedPage.getByRole('columnheader', { name: 'Name' })).toBeVisible()
+    await expect(authenticatedPage.getByRole('columnheader', { name: 'State' })).toBeVisible()
+    await expect(authenticatedPage.getByRole('columnheader', { name: 'Started' })).toBeVisible()
+    await expect(authenticatedPage.getByRole('columnheader', { name: 'Finished' })).toBeVisible()
+    await expect(authenticatedPage.getByRole('columnheader', { name: 'Worker' })).toBeVisible()
+    await expect(authenticatedPage.getByRole('columnheader', { name: 'Actions' })).toBeVisible()
   })
 
-  test('shows loading skeleton while fetching tasks', async ({ page }) => {
-    // Slow down the API response and return mock data
-    await page.route(/.*\/pulp\/api\/v3\/tasks\/(\?.*)?$/, async (route) => {
+  test('shows loading skeleton while fetching tasks', async ({ authenticatedPage }) => {
+    // Slow down the API response to show loading state
+    await authenticatedPage.route(/.*\/pulp\/api\/v3\/tasks\/(\?.*)?$/, async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 500))
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          count: 2,
-          next: null,
-          previous: null,
-          results: [
-            { pulp_href: '/pulp/api/v3/tasks/1/', pulp_created: new Date().toISOString(), pulp_last_updated: new Date().toISOString(), state: 'completed', name: 'task-1', logging_cid: '', started_at: new Date().toISOString(), finished_at: new Date().toISOString(), error: null, worker: null, parent_task: null, child_tasks: [], progress_reports: [], created_resources: [], reserved_resources_record: [] },
-            { pulp_href: '/pulp/api/v3/tasks/2/', pulp_created: new Date().toISOString(), pulp_last_updated: new Date().toISOString(), state: 'running', name: 'task-2', logging_cid: '', started_at: new Date().toISOString(), finished_at: null, error: null, worker: null, parent_task: null, child_tasks: [], progress_reports: [], created_resources: [], reserved_resources_record: [] },
-          ],
-        }),
-      })
+      await route.continue()
     })
 
-    await page.goto('/tasks')
+    await authenticatedPage.goto('/tasks')
 
     // Verify loading skeletons are shown (animate-pulse class)
-    const skeletons = page.locator('[class*="animate-pulse"]')
+    const skeletons = authenticatedPage.locator('[class*="animate-pulse"]')
     await expect(skeletons.first()).toBeVisible()
   })
 
-  test('displays tasks list after loading', async ({ page }) => {
-    await page.goto('/tasks')
+  test('displays tasks list after loading', async ({ authenticatedPage }) => {
+    await authenticatedPage.goto('/tasks')
 
     // Wait for table to load
-    await expect(page.getByRole('table')).toBeVisible()
+    await expect(authenticatedPage.getByRole('table')).toBeVisible()
 
-    // Verify at least one task row exists
-    const rows = page.getByRole('row')
+    // Verify at least one task row exists (tasks are created by Pulp operations)
+    const rows = authenticatedPage.getByRole('row')
     await expect(rows.first()).toBeVisible()
   })
 
-  test('displays state badges with correct colors', async ({ page }) => {
-    await page.goto('/tasks')
-    await expect(page.getByRole('table')).toBeVisible()
+  test('displays state badges with correct colors', async ({ authenticatedPage }) => {
+    await authenticatedPage.goto('/tasks')
+    await expect(authenticatedPage.getByRole('table')).toBeVisible()
 
-    // Check for various state badges
-    const completedBadge = page.getByText('completed', { exact: true })
-    const runningBadge = page.getByText('running', { exact: true })
-    const failedBadge = page.getByText('failed', { exact: true })
+    // Check for various state badges - at least one should be visible
+    const completedBadge = authenticatedPage.getByText('completed', { exact: true })
+    const runningBadge = authenticatedPage.getByText('running', { exact: true })
+    const failedBadge = authenticatedPage.getByText('failed', { exact: true })
+    const waitingBadge = authenticatedPage.getByText('waiting', { exact: true })
+    const canceledBadge = authenticatedPage.getByText('canceled', { exact: true })
 
-    // At least one state badge should be visible
-    const anyStateBadge = completedBadge.or(runningBadge).or(failedBadge)
+    const anyStateBadge = completedBadge
+      .or(runningBadge)
+      .or(failedBadge)
+      .or(waitingBadge)
+      .or(canceledBadge)
     await expect(anyStateBadge.first()).toBeVisible()
   })
 
-  test('filters tasks by state', async ({ page }) => {
-    await page.goto('/tasks')
-    await expect(page.getByRole('table')).toBeVisible()
+  test('filters tasks by state', async ({ authenticatedPage }) => {
+    await authenticatedPage.goto('/tasks')
+    await expect(authenticatedPage.getByRole('table')).toBeVisible()
 
     // Find state filter dropdown
-    const stateFilter = page.locator('select')
+    const stateFilter = authenticatedPage.locator('select')
 
     // Select "completed" filter
     await stateFilter.selectOption('completed')
@@ -103,96 +82,74 @@ test.describe('Tasks Monitoring Flow', () => {
     await expect(stateFilter).toHaveValue('completed')
   })
 
-  test('searches tasks by name', async ({ page }) => {
-    await page.goto('/tasks')
+  test('searches tasks by name', async ({ authenticatedPage }) => {
+    await authenticatedPage.goto('/tasks')
 
     // Wait for initial load
-    await expect(page.getByRole('table')).toBeVisible()
+    await expect(authenticatedPage.getByRole('table')).toBeVisible()
 
     // Type in search
-    const searchInput = page.getByPlaceholder('Search tasks...')
-    await searchInput.fill('task-1')
+    const searchInput = authenticatedPage.getByPlaceholder('Search tasks...')
+    await searchInput.fill('sync')
 
-    // Verify search input value (auto-retrying assertion)
-    await expect(searchInput).toHaveValue('task-1')
+    // Verify search input value
+    await expect(searchInput).toHaveValue('sync')
   })
 
-  test('refreshes tasks list', async ({ page }) => {
-    await page.goto('/tasks')
-    await expect(page.getByRole('table')).toBeVisible()
+  test('refreshes tasks list', async ({ authenticatedPage }) => {
+    await authenticatedPage.goto('/tasks')
+    await expect(authenticatedPage.getByRole('table')).toBeVisible()
 
-    // Click refresh button
-    const refreshButtons = page.locator('button').filter({ has: page.locator('svg') })
+    // Click refresh button (button with svg icon)
+    const refreshButtons = authenticatedPage
+      .locator('button')
+      .filter({ has: authenticatedPage.locator('svg') })
     await refreshButtons.first().click()
 
     // Verify page is still functional
-    await expect(page.getByRole('table')).toBeVisible()
+    await expect(authenticatedPage.getByRole('table')).toBeVisible()
   })
 
-  test('views task detail', async ({ page }) => {
-    await page.goto('/tasks')
-    await expect(page.getByRole('table')).toBeVisible()
+  test('views task detail', async ({ authenticatedPage }) => {
+    await authenticatedPage.goto('/tasks')
+    await expect(authenticatedPage.getByRole('table')).toBeVisible()
 
     // Find and click view details button
-    const viewButton = page.getByRole('button', { name: 'View details' }).first()
+    const viewButton = authenticatedPage.getByRole('button', { name: 'View details' }).first()
     if (await viewButton.isVisible()) {
       await viewButton.click()
       // Verify navigation to task detail
-      await expect(page).toHaveURL(/\/tasks\//)
+      await expect(authenticatedPage).toHaveURL(/\/tasks\//)
+    } else {
+      // Skip if no tasks available to view
+      test.skip()
     }
   })
 
-  test('cancels running task with confirmation', async ({ page }) => {
-    // Mock running task
-    await page.route(/.*\/pulp\/api\/v3\/tasks\/(\?.*)?$/, async (route) => {
-      await route.fulfill({
-        contentType: 'application/json',
-        body: JSON.stringify({
-          count: 1,
-          next: null,
-          previous: null,
-          results: [
-            {
-              pulp_href: '/pulp/api/v3/tasks/1/',
-              pulp_created: new Date().toISOString(),
-              pulp_last_updated: new Date().toISOString(),
-              state: 'running',
-              name: 'running-task',
-              logging_cid: '',
-              started_at: new Date().toISOString(),
-              finished_at: null,
-              error: null,
-              worker: '/pulp/api/v3/workers/1/',
-              parent_task: null,
-              child_tasks: [],
-              progress_reports: [],
-              created_resources: [],
-              reserved_resources_record: [],
-            },
-          ],
-        }),
-      })
-    })
+  test('cancels running task with confirmation', async ({ authenticatedPage }) => {
+    await authenticatedPage.goto('/tasks')
+    await expect(authenticatedPage.getByRole('table')).toBeVisible()
 
-    await page.goto('/tasks')
-    await expect(page.getByRole('table')).toBeVisible()
+    // Find cancel button for running/waiting tasks
+    const cancelButton = authenticatedPage.getByRole('button', { name: 'Cancel task' }).first()
 
-    // Set up dialog handler
-    page.on('dialog', (dialog) => {
-      expect(dialog.message()).toContain('Are you sure')
-      dialog.dismiss() // Cancel the operation
-    })
-
-    // Find and click cancel button
-    const cancelButton = page.getByRole('button', { name: 'Cancel task' }).first()
     if (await cancelButton.isVisible()) {
+      // Set up dialog handler
+      authenticatedPage.on('dialog', (dialog) => {
+        expect(dialog.message()).toContain('Are you sure')
+        dialog.dismiss() // Cancel the operation to avoid actual cancellation
+      })
+
       await cancelButton.click()
+    } else {
+      // Skip if no running/waiting tasks available
+      test.skip()
     }
   })
 
-  test('cancel button only shows for running/waiting tasks', async ({ page }) => {
-    // Mock only completed tasks
-    await page.route(/.*\/pulp\/api\/v3\/tasks\/(\?.*)?$/, async (route) => {
+  test('cancel button only shows for running/waiting tasks', async ({ authenticatedPage }) => {
+    // Mock only completed tasks to verify cancel button behavior
+    await authenticatedPage.route(/.*\/pulp\/api\/v3\/tasks\/(\?.*)?$/, async (route) => {
       await route.fulfill({
         contentType: 'application/json',
         body: JSON.stringify({
@@ -222,31 +179,31 @@ test.describe('Tasks Monitoring Flow', () => {
       })
     })
 
-    await page.goto('/tasks')
-    await expect(page.getByRole('table')).toBeVisible()
+    await authenticatedPage.goto('/tasks')
+    await expect(authenticatedPage.getByRole('table')).toBeVisible()
 
     // Cancel button should not be visible for completed tasks
-    await expect(page.getByRole('button', { name: 'Cancel task' })).not.toBeVisible()
+    await expect(authenticatedPage.getByRole('button', { name: 'Cancel task' })).not.toBeVisible()
   })
 
-  test('shows empty state when no tasks exist', async ({ page }) => {
+  test('shows empty state when no tasks exist', async ({ authenticatedPage }) => {
     // Mock empty response
-    await page.route(/.*\/pulp\/api\/v3\/tasks\/(\?.*)?$/, async (route) => {
+    await authenticatedPage.route(/.*\/pulp\/api\/v3\/tasks\/(\?.*)?$/, async (route) => {
       await route.fulfill({
         contentType: 'application/json',
         body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }),
       })
     })
 
-    await page.goto('/tasks')
+    await authenticatedPage.goto('/tasks')
 
     // Verify empty state message
-    await expect(page.getByText('No tasks found')).toBeVisible()
+    await expect(authenticatedPage.getByText('No tasks found')).toBeVisible()
   })
 
-  test('shows error state when API fails', async ({ page }) => {
+  test('shows error state when API fails', async ({ authenticatedPage }) => {
     // Mock error response
-    await page.route(/.*\/pulp\/api\/v3\/tasks\/(\?.*)?$/, async (route) => {
+    await authenticatedPage.route(/.*\/pulp\/api\/v3\/tasks\/(\?.*)?$/, async (route) => {
       await route.fulfill({
         status: 500,
         contentType: 'application/json',
@@ -254,15 +211,15 @@ test.describe('Tasks Monitoring Flow', () => {
       })
     })
 
-    await page.goto('/tasks')
+    await authenticatedPage.goto('/tasks')
 
     // Verify error message
-    await expect(page.getByText('Failed to load tasks')).toBeVisible()
+    await expect(authenticatedPage.getByText('Failed to load tasks')).toBeVisible()
   })
 
-  test('shows search empty state when no matches', async ({ page }) => {
-    // Mock empty response for search query
-    await page.route(/.*\/pulp\/api\/v3\/tasks\/(\?.*)?$/, async (route) => {
+  test('shows search empty state when no matches', async ({ authenticatedPage }) => {
+    // Mock response that returns tasks initially but empty for search
+    await authenticatedPage.route(/.*\/pulp\/api\/v3\/tasks\/(\?.*)?$/, async (route) => {
       const url = route.request().url()
       if (url.includes('name__contains')) {
         await route.fulfill({
@@ -275,32 +232,47 @@ test.describe('Tasks Monitoring Flow', () => {
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({
-            count: 2,
+            count: 1,
             next: null,
             previous: null,
             results: [
-              { pulp_href: '/pulp/api/v3/tasks/1/', pulp_created: new Date().toISOString(), pulp_last_updated: new Date().toISOString(), state: 'completed', name: 'task-1', logging_cid: '', started_at: new Date().toISOString(), finished_at: new Date().toISOString(), error: null, worker: null, parent_task: null, child_tasks: [], progress_reports: [], created_resources: [], reserved_resources_record: [] },
-              { pulp_href: '/pulp/api/v3/tasks/2/', pulp_created: new Date().toISOString(), pulp_last_updated: new Date().toISOString(), state: 'running', name: 'task-2', logging_cid: '', started_at: new Date().toISOString(), finished_at: null, error: null, worker: null, parent_task: null, child_tasks: [], progress_reports: [], created_resources: [], reserved_resources_record: [] },
+              {
+                pulp_href: '/pulp/api/v3/tasks/1/',
+                pulp_created: new Date().toISOString(),
+                pulp_last_updated: new Date().toISOString(),
+                state: 'completed',
+                name: 'test-task',
+                logging_cid: '',
+                started_at: new Date().toISOString(),
+                finished_at: new Date().toISOString(),
+                error: null,
+                worker: null,
+                parent_task: null,
+                child_tasks: [],
+                progress_reports: [],
+                created_resources: [],
+                reserved_resources_record: [],
+              },
             ],
           }),
         })
       }
     })
 
-    await page.goto('/tasks')
-    await expect(page.getByRole('table')).toBeVisible()
+    await authenticatedPage.goto('/tasks')
+    await expect(authenticatedPage.getByRole('table')).toBeVisible()
 
     // Search for non-existent task
-    const searchInput = page.getByPlaceholder('Search tasks...')
+    const searchInput = authenticatedPage.getByPlaceholder('Search tasks...')
     await searchInput.fill('nonexistent-task-xyz')
 
-    // Verify no results message (auto-retrying assertion)
-    await expect(page.getByText('No tasks found matching your filters')).toBeVisible()
+    // Verify no results message
+    await expect(authenticatedPage.getByText('No tasks found matching your filters')).toBeVisible()
   })
 
-  test('pagination works correctly', async ({ page }) => {
-    // Mock paginated response
-    await page.route(/.*\/pulp\/api\/v3\/tasks\/(\?.*)?$/, async (route) => {
+  test('pagination works correctly', async ({ authenticatedPage }) => {
+    // Mock paginated response with many results
+    await authenticatedPage.route(/.*\/pulp\/api\/v3\/tasks\/(\?.*)?$/, async (route) => {
       await route.fulfill({
         contentType: 'application/json',
         body: JSON.stringify({
@@ -328,12 +300,12 @@ test.describe('Tasks Monitoring Flow', () => {
       })
     })
 
-    await page.goto('/tasks')
-    await expect(page.getByRole('table')).toBeVisible()
+    await authenticatedPage.goto('/tasks')
+    await expect(authenticatedPage.getByRole('table')).toBeVisible()
 
     // Check for pagination controls
-    const nextButton = page.getByRole('button', { name: 'Next' })
-    const prevButton = page.getByRole('button', { name: 'Previous' })
+    const nextButton = authenticatedPage.getByRole('button', { name: 'Next' })
+    const prevButton = authenticatedPage.getByRole('button', { name: 'Previous' })
 
     await expect(nextButton).toBeVisible()
     await expect(prevButton).toBeDisabled()

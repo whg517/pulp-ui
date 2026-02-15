@@ -1,0 +1,72 @@
+# E2E testing Docker Compose configuration
+# Standalone configuration for ephemeral end-to-end testing
+# Usage: docker-compose -f docker-compose.e2e.yml up
+#
+# Key differences from docker-compose.yml:
+# - Uses tmpfs for ephemeral storage (no persistent volumes)
+# - Container names prefixed with e2e- to avoid conflicts
+# - Faster health check interval (10s instead of 30s for Pulp)
+# - Longer start_period (90s) for Pulp cold start
+# - Exposes postgres (5432) and redis (6379) ports for testing
+
+services:
+  postgres:
+    image: docker.io/library/postgres:15
+    container_name: e2e-pulp-postgres
+    environment:
+      POSTGRES_USER: pulp
+      POSTGRES_PASSWORD: pulp
+      POSTGRES_DB: pulp
+    tmpfs:
+      - /var/lib/postgresql/data
+    # Port not exposed externally - only needed internally
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pulp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: docker.io/library/redis:7
+    container_name: e2e-pulp-redis
+    tmpfs:
+      - /data
+    # Port not exposed externally - only needed internally
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  pulp:
+    image: ghcr.io/pulp/pulp:latest
+    container_name: e2e-pulp-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PULP_DB_HOST: postgres
+      PULP_DB_PORT: 5432
+      PULP_DB_USER: pulp
+      PULP_DB_PASSWORD: pulp
+      PULP_DB_NAME: pulp
+      PULP_REDIS_HOST: redis
+      PULP_REDIS_PORT: 6379
+      PULP_SECRET_KEY: "e2e-test-secret-key"
+      PULP_ADMIN_PASSWORD: admin
+      PULP_CONTENT_ORIGIN: "http://localhost:8081"
+      DJANGO_SETTINGS_MODULE: pulpcore.app.settings
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./pulp-settings.py:/etc/pulp/settings.py:ro
+    tmpfs:
+      - /var/lib/pulp
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/pulp/api/v3/status/"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 90s

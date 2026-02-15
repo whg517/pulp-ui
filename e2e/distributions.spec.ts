@@ -1,64 +1,45 @@
-import { test, expect } from '@playwright/test'
-import { setupApiMocks } from './mocks/api-mocks'
+import { test, expect } from './fixtures'
 
 test.describe('Distributions Management Flow', () => {
-  test.beforeEach(async ({ page }) => {
-    // Setup API mocks
-    await setupApiMocks(page)
-
-    // Login first
-    await page.context().clearCookies()
-    await page.goto('/login')
-    await page.getByLabel('Username').fill('admin')
-    await page.getByLabel('Password').fill('password')
-    await page.getByRole('button', { name: 'Sign in' }).click()
-    await expect(page).toHaveURL('/')
-  })
-
-  test('displays distributions list page', async ({ page }) => {
-    await page.goto('/distributions')
+  test('displays distributions list page', async ({ authenticatedPage }) => {
+    await authenticatedPage.goto('/distributions')
 
     // Verify page header
-    await expect(page.getByRole('heading', { name: 'Distributions' })).toBeVisible()
-    await expect(page.getByText('Publish and serve your content')).toBeVisible()
+    await expect(authenticatedPage.getByRole('heading', { name: 'Distributions' })).toBeVisible()
+    await expect(authenticatedPage.getByText('Publish and serve your content')).toBeVisible()
 
     // Verify create button exists
-    await expect(page.getByRole('button', { name: /Create Distribution/ })).toBeVisible()
+    await expect(authenticatedPage.getByRole('button', { name: /Create Distribution/ })).toBeVisible()
 
     // Verify search input exists
-    await expect(page.getByPlaceholder('Search distributions...')).toBeVisible()
+    await expect(authenticatedPage.getByPlaceholder('Search distributions...')).toBeVisible()
   })
 
-  test('displays distributions table with correct columns', async ({ page }) => {
-    await page.goto('/distributions')
+  test('displays distributions table with correct columns', async ({ authenticatedPage }) => {
+    await authenticatedPage.goto('/distributions')
 
     // Verify table headers
-    await expect(page.getByRole('columnheader', { name: 'Name' })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Base Path' })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Base URL' })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Repository' })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Created' })).toBeVisible()
-    await expect(page.getByRole('columnheader', { name: 'Actions' })).toBeVisible()
+    await expect(authenticatedPage.getByRole('columnheader', { name: 'Name' })).toBeVisible()
+    await expect(authenticatedPage.getByRole('columnheader', { name: 'Base Path' })).toBeVisible()
+    await expect(authenticatedPage.getByRole('columnheader', { name: 'Base URL' })).toBeVisible()
+    await expect(authenticatedPage.getByRole('columnheader', { name: 'Repository' })).toBeVisible()
+    await expect(authenticatedPage.getByRole('columnheader', { name: 'Created' })).toBeVisible()
+    await expect(authenticatedPage.getByRole('columnheader', { name: 'Actions' })).toBeVisible()
   })
 
   test('shows loading skeleton while fetching distributions', async ({ page }) => {
-    // Slow down the API response and return mock data
+    // Slow down the API response to see loading state
     await page.route(/.*\/pulp\/api\/v3\/distributions\/(\?.*)?$/, async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 500))
-      await route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          count: 2,
-          next: null,
-          previous: null,
-          results: [
-            { pulp_href: '/pulp/api/v3/distributions/1/', pulp_created: new Date().toISOString(), pulp_last_updated: new Date().toISOString(), base_path: 'dist-1', base_url: '/pulp/content/dist-1/', content_guard: null, pulp_labels: {}, name: 'dist-1', repository: null, repository_version: null },
-            { pulp_href: '/pulp/api/v3/distributions/2/', pulp_created: new Date().toISOString(), pulp_last_updated: new Date().toISOString(), base_path: 'dist-2', base_url: '/pulp/content/dist-2/', content_guard: null, pulp_labels: {}, name: 'dist-2', repository: null, repository_version: null },
-          ],
-        }),
-      })
+      await route.continue()
     })
+
+    // Login and navigate
+    await page.goto('/login')
+    await page.getByLabel('Username').fill('admin')
+    await page.getByLabel('Password').fill('admin')
+    await page.getByRole('button', { name: 'Sign in' }).click()
+    await page.waitForURL('/')
 
     await page.goto('/distributions')
 
@@ -67,61 +48,91 @@ test.describe('Distributions Management Flow', () => {
     await expect(skeletons.first()).toBeVisible()
   })
 
-  test('displays distributions list after loading', async ({ page }) => {
-    await page.goto('/distributions')
+  test('displays distributions list after loading', async ({ authenticatedPage, factory }) => {
+    // Create a test distribution
+    await factory.createDistribution()
+
+    await authenticatedPage.goto('/distributions')
 
     // Wait for table to load
-    await expect(page.getByRole('table')).toBeVisible()
+    await expect(authenticatedPage.getByRole('table')).toBeVisible()
 
-    // Verify at least one distribution row exists
-    const rows = page.getByRole('row')
+    // Verify at least one distribution row exists (header + data row)
+    const rows = authenticatedPage.getByRole('row')
     await expect(rows.first()).toBeVisible()
   })
 
-  test('searches distributions by name', async ({ page }) => {
-    await page.goto('/distributions')
+  test('searches distributions by name', async ({ authenticatedPage, factory }) => {
+    // Create a test distribution with unique name
+    const dist = await factory.createDistribution()
+
+    await authenticatedPage.goto('/distributions')
 
     // Wait for initial load
-    await expect(page.getByRole('table')).toBeVisible()
+    await expect(authenticatedPage.getByRole('table')).toBeVisible()
 
     // Type in search
-    const searchInput = page.getByPlaceholder('Search distributions...')
-    await searchInput.fill('dist-1')
+    const searchInput = authenticatedPage.getByPlaceholder('Search distributions...')
+    await searchInput.fill(dist.name)
 
     // Verify search input value (auto-retrying assertion)
-    await expect(searchInput).toHaveValue('dist-1')
+    await expect(searchInput).toHaveValue(dist.name)
+
+    // Verify the distribution appears in results
+    await expect(authenticatedPage.getByText(dist.name)).toBeVisible()
   })
 
-  test('refreshes distributions list', async ({ page }) => {
-    await page.goto('/distributions')
-    await expect(page.getByRole('table')).toBeVisible()
+  test('refreshes distributions list', async ({ authenticatedPage, factory }) => {
+    // Create a test distribution
+    await factory.createDistribution()
 
-    // Click refresh button
-    const refreshButtons = page.locator('button').filter({ has: page.locator('svg') })
+    await authenticatedPage.goto('/distributions')
+    await expect(authenticatedPage.getByRole('table')).toBeVisible()
+
+    // Click refresh button (button with SVG icon, first one is refresh)
+    const refreshButtons = authenticatedPage.locator('button').filter({ has: authenticatedPage.locator('svg') })
     await refreshButtons.first().click()
 
     // Verify page is still functional
-    await expect(page.getByRole('table')).toBeVisible()
+    await expect(authenticatedPage.getByRole('table')).toBeVisible()
   })
 
-  test('displays repository link status badge', async ({ page }) => {
-    await page.goto('/distributions')
-    await expect(page.getByRole('table')).toBeVisible()
+  test('displays repository link status badge', async ({ authenticatedPage, factory }) => {
+    // Create a distribution without repository (None badge)
+    await factory.createDistribution()
 
-    // Check for repository status badges
-    const linkedBadge = page.getByText('Linked')
-    const noneBadge = page.getByText('None', { exact: true })
+    await authenticatedPage.goto('/distributions')
+    await expect(authenticatedPage.getByRole('table')).toBeVisible()
 
-    // At least one of the badges should be visible
-    await expect(linkedBadge.or(noneBadge).first()).toBeVisible()
+    // Check for repository status badges - "None" for distributions without repo
+    const noneBadge = authenticatedPage.getByText('None', { exact: true })
+    await expect(noneBadge.first()).toBeVisible()
   })
 
-  test('base URL is clickable and opens in new tab', async ({ page }) => {
-    await page.goto('/distributions')
-    await expect(page.getByRole('table')).toBeVisible()
+  test('displays linked repository badge', async ({ authenticatedPage, factory }) => {
+    // Create a repository first
+    const repo = await factory.createRepository()
+
+    // Create a distribution linked to the repository
+    await factory.createDistribution({ repository: repo.pulp_href })
+
+    await authenticatedPage.goto('/distributions')
+    await expect(authenticatedPage.getByRole('table')).toBeVisible()
+
+    // Check for "Linked" badge
+    const linkedBadge = authenticatedPage.getByText('Linked')
+    await expect(linkedBadge.first()).toBeVisible()
+  })
+
+  test('base URL is clickable and opens in new tab', async ({ authenticatedPage, factory }) => {
+    // Create a test distribution
+    await factory.createDistribution()
+
+    await authenticatedPage.goto('/distributions')
+    await expect(authenticatedPage.getByRole('table')).toBeVisible()
 
     // Find a base URL link
-    const baseUrlLink = page.locator('a[target="_blank"]').first()
+    const baseUrlLink = authenticatedPage.locator('a[target="_blank"]').first()
 
     if (await baseUrlLink.isVisible()) {
       // Verify it opens in new tab
@@ -130,51 +141,58 @@ test.describe('Distributions Management Flow', () => {
     }
   })
 
-  test('edits distribution', async ({ page }) => {
-    await page.goto('/distributions')
-    await expect(page.getByRole('table')).toBeVisible()
+  test('edits distribution', async ({ authenticatedPage, factory }) => {
+    // Create a test distribution
+    await factory.createDistribution()
+
+    await authenticatedPage.goto('/distributions')
+    await expect(authenticatedPage.getByRole('table')).toBeVisible()
 
     // Find and click edit button
-    const editButton = page.getByRole('button', { name: 'Edit distribution' }).first()
+    const editButton = authenticatedPage.getByRole('button', { name: 'Edit distribution' }).first()
     if (await editButton.isVisible()) {
       await editButton.click()
       // Note: Edit functionality may open a modal or navigate
     }
   })
 
-  test('deletes distribution with confirmation', async ({ page }) => {
-    await page.goto('/distributions')
-    await expect(page.getByRole('table')).toBeVisible()
+  test('deletes distribution with confirmation', async ({ authenticatedPage, factory }) => {
+    // Create a test distribution
+    await factory.createDistribution()
 
-    // Set up dialog handler
-    page.on('dialog', (dialog) => {
+    await authenticatedPage.goto('/distributions')
+    await expect(authenticatedPage.getByRole('table')).toBeVisible()
+
+    // Set up dialog handler to dismiss (cancel) the confirmation
+    authenticatedPage.on('dialog', (dialog) => {
       expect(dialog.message()).toContain('Are you sure')
       dialog.dismiss() // Cancel the deletion
     })
 
     // Find and click delete button
-    const deleteButton = page.getByRole('button', { name: 'Delete distribution' }).first()
+    const deleteButton = authenticatedPage.getByRole('button', { name: 'Delete distribution' }).first()
     if (await deleteButton.isVisible()) {
       await deleteButton.click()
     }
   })
 
-  test('shows empty state when no distributions exist', async ({ page }) => {
-    // Mock empty response
+  test('shows empty state when no distributions exist', async ({ authenticatedPage, page }) => {
+    // Mock empty response - only for this test to ensure empty state
     await page.route(/.*\/pulp\/api\/v3\/distributions\/(\?.*)?$/, async (route) => {
       await route.fulfill({
+        status: 200,
         contentType: 'application/json',
         body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }),
       })
     })
 
-    await page.goto('/distributions')
+    await authenticatedPage.goto('/distributions')
 
     // Verify empty state message
-    await expect(page.getByText('No distributions found')).toBeVisible()
+    await expect(authenticatedPage.getByText('No distributions found')).toBeVisible()
   })
 
-  test('shows error state when API fails', async ({ page }) => {
+  test('shows error state when API fails', async ({ authenticatedPage, page }) => {
     // Mock error response
     await page.route(/.*\/pulp\/api\/v3\/distributions\/(\?.*)?$/, async (route) => {
       await route.fulfill({
@@ -184,82 +202,41 @@ test.describe('Distributions Management Flow', () => {
       })
     })
 
-    await page.goto('/distributions')
+    await authenticatedPage.goto('/distributions')
 
     // Verify error message
-    await expect(page.getByText('Failed to load distributions')).toBeVisible()
+    await expect(authenticatedPage.getByText('Failed to load distributions')).toBeVisible()
   })
 
-  test('shows search empty state when no matches', async ({ page }) => {
-    // Mock empty response for search query
-    await page.route(/.*\/pulp\/api\/v3\/distributions\/(\?.*)?$/, async (route) => {
-      const url = route.request().url()
-      if (url.includes('name__contains')) {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ count: 0, next: null, previous: null, results: [] }),
-        })
-      } else {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            count: 2,
-            next: null,
-            previous: null,
-            results: [
-              { pulp_href: '/pulp/api/v3/distributions/1/', pulp_created: new Date().toISOString(), pulp_last_updated: new Date().toISOString(), base_path: 'dist-1', base_url: '/pulp/content/dist-1/', content_guard: null, pulp_labels: {}, name: 'dist-1', repository: null, repository_version: null },
-              { pulp_href: '/pulp/api/v3/distributions/2/', pulp_created: new Date().toISOString(), pulp_last_updated: new Date().toISOString(), base_path: 'dist-2', base_url: '/pulp/content/dist-2/', content_guard: null, pulp_labels: {}, name: 'dist-2', repository: null, repository_version: null },
-            ],
-          }),
-        })
-      }
-    })
+  test('shows search empty state when no matches', async ({ authenticatedPage, factory }) => {
+    // Create a test distribution
+    await factory.createDistribution()
 
-    await page.goto('/distributions')
-    await expect(page.getByRole('table')).toBeVisible()
+    await authenticatedPage.goto('/distributions')
+    await expect(authenticatedPage.getByRole('table')).toBeVisible()
 
     // Search for non-existent distribution
-    const searchInput = page.getByPlaceholder('Search distributions...')
-    await searchInput.fill('nonexistent-dist-xyz')
+    const searchInput = authenticatedPage.getByPlaceholder('Search distributions...')
+    await searchInput.fill('nonexistent-dist-xyz-12345')
 
     // Verify no results message (auto-retrying assertion)
-    await expect(page.getByText('No distributions found matching your search')).toBeVisible()
+    await expect(authenticatedPage.getByText('No distributions found matching your search')).toBeVisible()
   })
 
-  test('pagination works correctly', async ({ page }) => {
-    // Mock paginated response
-    await page.route(/.*\/pulp\/api\/v3\/distributions\/(\?.*)?$/, async (route) => {
-      await route.fulfill({
-        contentType: 'application/json',
-        body: JSON.stringify({
-          count: 25,
-          next: 'offset=10',
-          previous: null,
-          results: Array.from({ length: 10 }, (_, i) => ({
-            pulp_href: `/pulp/api/v3/distributions/${i + 1}/`,
-            pulp_created: new Date().toISOString(),
-            pulp_last_updated: new Date().toISOString(),
-            base_path: `dist-${i + 1}`,
-            base_url: `/pulp/content/dist-${i + 1}/`,
-            content_guard: null,
-            pulp_labels: {},
-            name: `dist-${i + 1}`,
-            repository: null,
-            repository_version: null,
-          })),
-        }),
-      })
-    })
+  test('pagination works correctly', async ({ authenticatedPage, factory }) => {
+    // Create 15+ distributions to trigger pagination
+    for (let i = 0; i < 15; i++) {
+      await factory.createDistribution()
+    }
 
-    await page.goto('/distributions')
-    await expect(page.getByRole('table')).toBeVisible()
+    await authenticatedPage.goto('/distributions')
+    await expect(authenticatedPage.getByRole('table')).toBeVisible()
 
     // Check for pagination controls
-    const nextButton = page.getByRole('button', { name: 'Next' })
-    const prevButton = page.getByRole('button', { name: 'Previous' })
+    const nextButton = authenticatedPage.getByRole('button', { name: 'Next' })
+    const prevButton = authenticatedPage.getByRole('button', { name: 'Previous' })
 
+    // With 15+ items, next button should be visible and previous should be disabled
     await expect(nextButton).toBeVisible()
     await expect(prevButton).toBeDisabled()
   })
