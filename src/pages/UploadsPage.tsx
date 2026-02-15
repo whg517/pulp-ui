@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { Search, RefreshCw, Trash2, Check, X } from 'lucide-react'
+import { RefreshCw, Trash2, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import {
   Table,
@@ -28,7 +27,6 @@ import type { PulpUpload } from '@/types/pulp'
 import { formatDistanceToNow } from 'date-fns'
 
 export function UploadsPage() {
-  const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [uploadToDelete, setUploadToDelete] = useState<PulpUpload | null>(null)
   const pageSize = 10
@@ -37,6 +35,7 @@ export function UploadsPage() {
     offset: (page - 1) * pageSize,
     limit: pageSize,
     ordering: '-pulp_created',
+    // Note: Uploads API doesn't support search filtering
   })
 
   const deleteMutation = useDeleteUpload()
@@ -72,16 +71,7 @@ export function UploadsPage() {
 
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search uploads..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
+          <div className="flex items-center justify-end gap-4">
             <Button variant="outline" size="icon" onClick={() => refetch()}>
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -97,9 +87,7 @@ export function UploadsPage() {
           ) : error ? (
             <p className="text-center text-destructive py-8">Failed to load uploads</p>
           ) : data?.results?.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              {search ? 'No uploads found matching your search' : 'No uploads found'}
-            </p>
+            <p className="text-center text-muted-foreground py-8">No uploads found</p>
           ) : (
             <Table>
               <TableHeader>

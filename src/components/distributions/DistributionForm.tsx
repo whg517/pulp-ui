@@ -29,7 +29,9 @@ interface DistributionFormFieldsProps {
 }
 
 export function DistributionFormFields({ isSubmitting }: DistributionFormFieldsProps) {
-  const { data: repositoriesData } = useRepositories({ limit: 100 })
+  // Fetch a larger limit to cover most installations; for very large setups,
+  // consider adding search/filter functionality
+  const { data: repositoriesData } = useRepositories({ limit: 500 })
 
   const repositoryOptions = repositoriesData?.results?.map((repo) => ({
     value: repo.pulp_href,
