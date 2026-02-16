@@ -37,7 +37,7 @@ jobs:
           CONSECUTIVE_SUCCESS=0
           REQUIRED_SUCCESS=3
           for i in $(seq 1 60); do
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/pulp/api/v3/status/ -u admin:admin)
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/pulp/api/v3/status/ -u admin:admin || echo "000")
             if [ "$HTTP_CODE" = "200" ]; then
               CONSECUTIVE_SUCCESS=$((CONSECUTIVE_SUCCESS + 1))
               echo "Health check passed ($CONSECUTIVE_SUCCESS/$REQUIRED_SUCCESS)"
