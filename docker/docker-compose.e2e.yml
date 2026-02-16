@@ -39,7 +39,7 @@ services:
       retries: 10
 
   pulp:
-    image: ghcr.io/pulp/pulp:latest
+    image: pulp/pulp:latest
     container_name: e2e-pulp-api
     depends_on:
       postgres:
@@ -58,8 +58,10 @@ services:
       PULP_ADMIN_PASSWORD: admin
       PULP_CONTENT_ORIGIN: "http://localhost:8080"
     ports:
-      - "8080:8080"
+      - "8080:80"
       - "24817:24817"
+    volumes:
+      - ./pulp-settings.py:/etc/pulp/settings.py:ro
     tmpfs:
       - /var/lib/pulp
     healthcheck:

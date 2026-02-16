@@ -3,8 +3,10 @@
 
 from pathlib import Path
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
-BASE_DIR = Path(__file__).resolve().parent.parent
+# MEDIA_ROOT - use the standard Pulp data directory
+# Don't derive from settings.py location as it changes when mounted in Docker
+MEDIA_ROOT = Path("/var/lib/pulp/media")
+MEDIA_URL = "/media/"
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "your-secret-key-change-in-production"
@@ -42,10 +44,6 @@ DOMAIN_ENABLED = False
 # Static files
 STATIC_URL = "/static/"
 
-# Media files
-MEDIA_ROOT = BASE_DIR / "media"
-MEDIA_URL = "/media/"
-
 # Authentication - Basic auth for development
 REST_FRAMEWORK__DEFAULT_AUTHENTICATION_CLASSES = [
     "rest_framework.authentication.BasicAuthentication",
@@ -75,7 +73,7 @@ LOGGING = {
         },
         "pulp": {
             "handlers": ["console"],
-            "level": "DEBUG",
+            "level": "WARNING",
             "propagate": False,
         },
     },
