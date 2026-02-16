@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+import { fileURLToPath } from 'url'
 
 export default defineConfig({
   testDir: './e2e',
@@ -9,8 +10,8 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
-  globalSetup: require.resolve('./e2e/globalSetup'),
-  globalTeardown: require.resolve('./e2e/globalTeardown'),
+  globalSetup: fileURLToPath(new URL('./e2e/globalSetup.ts', import.meta.url)),
+  globalTeardown: fileURLToPath(new URL('./e2e/globalTeardown.ts', import.meta.url)),
   use: {
     baseURL: 'http://localhost:5173',
     storageState: '.auth/admin.json',
