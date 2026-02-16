@@ -30,53 +30,53 @@ jobs:
       - name: Start Pulp services
         run: |
           docker compose -f docker/docker-compose.e2e.yml up -d
-          echo "Waiting for Pulp to be healthy..."
 
-          # Show container status for debugging
-          docker compose -f docker/docker-compose.e2e.yml ps
+          echo "Waiting for Pulp to become healthy (this may take several minutes for first run)..."
+          echo "Pulp needs to run database migrations before it can serve requests."
 
-          # Wait up to 10 minutes for Pulp to be ready
-          # Require 3 consecutive successful health checks to ensure stability
-          CONSECUTIVE_SUCCESS=0
-          REQUIRED_SUCCESS=3
-          for i in $(seq 1 60); do
-            # Get HTTP code, handle connection failures gracefully
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 http://localhost:8080/pulp/api/v3/status/ -u admin:admin 2>/dev/null || echo "000")
-            if [ "$HTTP_CODE" = "200" ]; then
-              CONSECUTIVE_SUCCESS=$((CONSECUTIVE_SUCCESS + 1))
-              echo "Health check passed ($CONSECUTIVE_SUCCESS/$REQUIRED_SUCCESS)"
-              if [ $CONSECUTIVE_SUCCESS -ge $REQUIRED_SUCCESS ]; then
-                echo "Pulp is healthy and stable!"
-                break
-              fi
-            else
-              echo "Health check returned $HTTP_CODE, resetting counter"
-              CONSECUTIVE_SUCCESS=0
-              # Show Pulp logs if health check fails (for debugging)
-              if [ $((i % 10)) -eq 0 ]; then
-                echo "=== Pulp container logs (last 20 lines) ==="
-                docker logs e2e-pulp-api --tail 20 2>&1 || true
-                echo "=== Container status ==="
-                docker compose -f docker/docker-compose.e2e.yml ps
-              fi
+          # Wait for the pulp container to become healthy (using Docker's health check)
+          # The health check has start_period: 90s and retries: 5, so max wait is ~140s
+          # But migrations can take longer, so we extend the wait
+          TIMEOUT=600  # 10 minutes
+          ELAPSED=0
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            HEALTH=$(docker inspect --format='{{.State.Health.Status}}' e2e-pulp-api 2>/dev/null || echo "unknown")
+            echo "Pulp health status: $HEALTH (${ELAPSED}s/${TIMEOUT}s)"
+
+            if [ "$HEALTH" = "healthy" ]; then
+              echo "Pulp is healthy!"
+              break
             fi
-            echo "Waiting... ($i/60)"
+
+            # Show logs every 60 seconds for debugging
+            if [ $((ELAPSED % 60)) -eq 0 ] && [ $ELAPSED -gt 0 ]; then
+              echo "=== Pulp logs (last 10 lines) ==="
+              docker logs e2e-pulp-api --tail 10 2>&1 || true
+            fi
+
             sleep 10
+            ELAPSED=$((ELAPSED + 10))
           done
 
-          # Final verification
-          if [ $CONSECUTIVE_SUCCESS -lt $REQUIRED_SUCCESS ]; then
-            echo "Pulp failed to become stable - showing logs"
-            docker logs e2e-pulp-api --tail 100 2>&1 || true
+          # Final check
+          HEALTH=$(docker inspect --format='{{.State.Health.Status}}' e2e-pulp-api 2>/dev/null || echo "unknown")
+          if [ "$HEALTH" != "healthy" ]; then
+            echo "Pulp failed to become healthy after ${TIMEOUT}s"
+            echo "=== Container status ==="
+            docker compose -f docker/docker-compose.e2e.yml ps
+            echo "=== Pulp logs (last 50 lines) ==="
+            docker logs e2e-pulp-api --tail 50 2>&1 || true
             exit 1
           fi
 
-          # Extra wait to ensure Pulp is fully initialized
-          echo "Waiting 30 seconds for Pulp to fully stabilize..."
-          sleep 30
+          # Extra wait to ensure Pulp is fully stable
+          echo "Waiting 15 seconds for Pulp to stabilize..."
+          sleep 15
 
-          # Verify Pulp is responding
+          # Verify Pulp API is responding
+          echo "Verifying Pulp API..."
           curl -s http://localhost:8080/pulp/api/v3/status/ -u admin:admin | head -c 500
+          echo ""
 
       - name: Run E2E tests
         run: bun run test:e2e:real
