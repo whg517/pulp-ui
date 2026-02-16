@@ -73,6 +73,17 @@ jobs:
           echo "Waiting 15 seconds for Pulp to stabilize..."
           sleep 15
 
+          # Wait for nginx to be ready (port 8080)
+          echo "Waiting for nginx (port 8080) to be ready..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/pulp/api/v3/status/ -u admin:admin > /dev/null 2>&1; then
+              echo "Nginx is ready!"
+              break
+            fi
+            echo "Waiting for nginx... ($i/30)"
+            sleep 2
+          done
+
           # Verify Pulp API is responding
           echo "Verifying Pulp API..."
           curl -s http://localhost:8080/pulp/api/v3/status/ -u admin:admin | head -c 500
