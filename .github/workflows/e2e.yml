@@ -33,14 +33,35 @@ jobs:
           echo "Waiting for Pulp to be healthy..."
 
           # Wait up to 10 minutes for Pulp to be ready
+          # Require 3 consecutive successful health checks to ensure stability
+          CONSECUTIVE_SUCCESS=0
+          REQUIRED_SUCCESS=3
           for i in $(seq 1 60); do
-            if curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/pulp/api/v3/status/ -u admin:admin | grep -q "200"; then
-              echo "Pulp is healthy!"
-              break
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/pulp/api/v3/status/ -u admin:admin)
+            if [ "$HTTP_CODE" = "200" ]; then
+              CONSECUTIVE_SUCCESS=$((CONSECUTIVE_SUCCESS + 1))
+              echo "Health check passed ($CONSECUTIVE_SUCCESS/$REQUIRED_SUCCESS)"
+              if [ $CONSECUTIVE_SUCCESS -ge $REQUIRED_SUCCESS ]; then
+                echo "Pulp is healthy and stable!"
+                break
+              fi
+            else
+              echo "Health check returned $HTTP_CODE, resetting counter"
+              CONSECUTIVE_SUCCESS=0
             fi
             echo "Waiting... ($i/60)"
             sleep 10
           done
+
+          # Final verification
+          if [ $CONSECUTIVE_SUCCESS -lt $REQUIRED_SUCCESS ]; then
+            echo "Pulp failed to become stable"
+            exit 1
+          fi
+
+          # Extra wait to ensure Pulp is fully initialized
+          echo "Waiting 30 seconds for Pulp to fully stabilize..."
+          sleep 30
 
           # Verify Pulp is responding
           curl -s http://localhost:8080/pulp/api/v3/status/ -u admin:admin | head -c 500
