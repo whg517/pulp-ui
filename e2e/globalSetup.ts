@@ -42,7 +42,7 @@ function checkDockerAvailable(): boolean {
  */
 function startDockerServices(): void {
   console.log('Starting E2E Docker services...')
-  execCommand(`docker-compose -f ${DOCKER_COMPOSE_FILE} up -d`)
+  execCommand(`docker compose -f ${DOCKER_COMPOSE_FILE} up -d`)
   console.log('Docker services started')
 }
 

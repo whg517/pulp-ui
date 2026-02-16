@@ -26,7 +26,7 @@ async function globalTeardown(): Promise<void> {
     // CI environment: tear down Docker completely
     console.log('[Global Teardown] CI environment detected - stopping Docker containers...')
     try {
-      execSync('docker-compose -f docker/docker-compose.e2e.yml down -v', {
+      execSync('docker compose -f docker/docker-compose.e2e.yml down -v', {
         stdio: 'inherit',
         cwd: process.cwd(),
       })
@@ -44,7 +44,7 @@ async function globalTeardown(): Promise<void> {
       '[Global Teardown] Reminder: Docker containers are still running for faster re-runs.'
     )
     console.log(
-      '[Global Teardown] To manually clean up, run: docker-compose -f docker/docker-compose.e2e.yml down -v'
+      '[Global Teardown] To manually clean up, run: docker compose -f docker/docker-compose.e2e.yml down -v'
     )
   }
 
