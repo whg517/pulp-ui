@@ -114,15 +114,15 @@ export default async function globalSetup() {
   const skipDocker = process.env.SKIP_DOCKER_SETUP === 'true'
 
   if (skipDocker) {
-    console.log('SKIP_DOCKER_SETUP=true - skipping Docker orchestration')
+    console.log('SKIP_DOCKER_SETUP=true - skipping Docker orchestration and health check')
   } else {
     if (!checkDockerAvailable()) {
       throw new Error('Docker is not available. Please install Docker or set SKIP_DOCKER_SETUP=true')
     }
     startDockerServices()
+    await waitForPulpHealth()
   }
 
-  await waitForPulpHealth()
   const storageStatePath = await authenticateAndSaveState()
 
   return { storageStatePath }
