@@ -67,9 +67,20 @@ export class PulpAPIClient {
 
   /**
    * Build URL with query parameters
+   * Handles both relative paths (e.g., '/repositories/') and full API paths (e.g., '/pulp/api/v3/tasks/123/')
    */
   private buildURL(path: string, params?: Record<string, string>): string {
-    const url = `${this.baseURL}${path}`
+    let url: string
+
+    // If path already contains the full API prefix, extract just the base host:port
+    if (path.includes('/pulp/api/v3/')) {
+      // Extract the host:port from baseURL (everything before /pulp/api/v3)
+      const baseHost = this.baseURL.split('/pulp/api/v3')[0]
+      url = `${baseHost}${path}`
+    } else {
+      url = `${this.baseURL}${path}`
+    }
+
     if (!params || Object.keys(params).length === 0) {
       return url
     }
