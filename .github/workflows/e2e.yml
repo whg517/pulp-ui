@@ -49,6 +49,7 @@ jobs:
         run: bun run test:e2e:real
         env:
           CI: true
+          SKIP_DOCKER_SETUP: true
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
