@@ -11,16 +11,14 @@ export default defineConfig({
     },
   },
   server: {
-    // Proxy Pulp API requests during development
-    // Ensure Pulp backend is running at http://localhost:8080
-    // Disable proxy during E2E tests (when E2E_TEST env var is set)
-    proxy: process.env.E2E_TEST
-      ? {}
-      : {
-          '/pulp': {
-            target: 'http://localhost:8080',
-            changeOrigin: true,
-          },
-        },
+    // Proxy Pulp API requests to the backend
+    // During E2E tests, use port 24817 (internal API) as nginx on 8080 may not be ready
+    // During development, use port 8080 (nginx)
+    proxy: {
+      '/pulp': {
+        target: process.env.E2E_TEST ? 'http://localhost:24817' : 'http://localhost:8080',
+        changeOrigin: true,
+      },
+    },
   },
 })

@@ -1,6 +1,6 @@
 import { request } from '@playwright/test'
 import { execSync } from 'node:child_process'
-import { existsSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getBasicAuthHeader, TEST_CREDENTIALS } from './helpers/auth.js'
@@ -76,6 +76,10 @@ const AUTH_RETRY_INTERVAL_MS = 2_000
 /**
  * Authenticate with Pulp and save storage state for authenticated tests
  * Includes retry logic to handle transient connection issues during Pulp startup
+ *
+ * The storage state includes:
+ * - localStorage entries for pulp_auth (base64 credentials) and pulp-auth (zustand state)
+ * - These are required for the frontend to recognize the authenticated session
  */
 async function authenticateAndSaveState(): Promise<string> {
   console.log('Authenticating and saving storage state...')
@@ -104,8 +108,46 @@ async function authenticateAndSaveState(): Promise<string> {
       })
 
       if (response.ok()) {
-        // Save storage state with authentication
-        await context.storageState({ path: STORAGE_STATE_PATH })
+        // Prepare localStorage values for the frontend auth system
+        // pulp_auth: base64 encoded credentials for API Basic Auth
+        const encodedCredentials = Buffer.from(
+          `${TEST_CREDENTIALS.username}:${TEST_CREDENTIALS.password}`
+        ).toString('base64')
+
+        // pulp-auth: zustand persisted state with isAuthenticated and username
+        const zustandState = {
+          state: {
+            isAuthenticated: true,
+            username: TEST_CREDENTIALS.username,
+          },
+          version: 0,
+        }
+
+        // Get cookies from the context first
+        const state = await context.storageState()
+
+        // Create storage state with localStorage entries for frontend auth
+        const storageState = {
+          cookies: state.cookies,
+          origins: [
+            {
+              origin: 'http://localhost:5173',
+              localStorage: [
+                {
+                  name: 'pulp_auth',
+                  value: encodedCredentials,
+                },
+                {
+                  name: 'pulp-auth',
+                  value: JSON.stringify(zustandState),
+                },
+              ],
+            },
+          ],
+        }
+
+        // Write the storage state file manually
+        writeFileSync(STORAGE_STATE_PATH, JSON.stringify(storageState, null, 2))
         console.log(`Storage state saved to ${STORAGE_STATE_PATH}`)
         await context.dispose()
         return STORAGE_STATE_PATH
