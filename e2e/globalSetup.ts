@@ -69,8 +69,12 @@ async function waitForPulpHealth(): Promise<void> {
   throw new Error(`Pulp health check timed out after ${HEALTH_CHECK_TIMEOUT_MS / 1000}s`)
 }
 
+const AUTH_RETRY_TIMEOUT_MS = 60_000
+const AUTH_RETRY_INTERVAL_MS = 2_000
+
 /**
  * Authenticate with Pulp and save storage state for authenticated tests
+ * Includes retry logic to handle transient connection issues during Pulp startup
  */
 async function authenticateAndSaveState(): Promise<string> {
   console.log('Authenticating and saving storage state...')
@@ -81,29 +85,46 @@ async function authenticateAndSaveState(): Promise<string> {
     mkdirSync(authDir, { recursive: true })
   }
 
-  const context = await request.newContext({
-    baseURL: 'http://localhost:8080',
-  })
-
   const authHeader = getBasicAuthHeader(TEST_CREDENTIALS.username, TEST_CREDENTIALS.password)
+  const startTime = Date.now()
+  let lastError: Error | null = null
 
-  // Authenticate and verify
-  const response = await context.get('/pulp/api/v3/status/', {
-    headers: {
-      Authorization: authHeader,
-    },
-  })
+  while (Date.now() - startTime < AUTH_RETRY_TIMEOUT_MS) {
+    const context = await request.newContext({
+      baseURL: 'http://localhost:8080',
+    })
 
-  if (!response.ok()) {
-    throw new Error(`Authentication failed: received status ${response.status()}`)
+    try {
+      // Authenticate and verify
+      const response = await context.get('/pulp/api/v3/status/', {
+        headers: {
+          Authorization: authHeader,
+        },
+      })
+
+      if (response.ok()) {
+        // Save storage state with authentication
+        await context.storageState({ path: STORAGE_STATE_PATH })
+        console.log(`Storage state saved to ${STORAGE_STATE_PATH}`)
+        await context.dispose()
+        return STORAGE_STATE_PATH
+      }
+
+      lastError = new Error(`Authentication failed: received status ${response.status()}`)
+      console.log(`Authentication returned ${response.status()}, retrying...`)
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error))
+      console.log(`Authentication error: ${lastError.message}, retrying...`)
+    } finally {
+      await context.dispose()
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, AUTH_RETRY_INTERVAL_MS))
   }
 
-  // Save storage state with authentication
-  await context.storageState({ path: STORAGE_STATE_PATH })
-  console.log(`Storage state saved to ${STORAGE_STATE_PATH}`)
-
-  await context.dispose()
-  return STORAGE_STATE_PATH
+  throw new Error(
+    `Authentication failed after ${AUTH_RETRY_TIMEOUT_MS / 1000}s: ${lastError?.message || 'unknown error'}`
+  )
 }
 
 /**
