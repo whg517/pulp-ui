@@ -254,7 +254,7 @@ describe('authStore', () => {
       expect(storedValue).not.toBeNull()
 
       if (storedValue) {
-        let parsed = JSON.parse(storedValue)
+        const parsed = JSON.parse(storedValue)
         expect(parsed.state.isAuthenticated).toBe(true)
       }
 
