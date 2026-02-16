@@ -62,7 +62,7 @@ services:
     tmpfs:
       - /var/lib/pulp
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/pulp/api/v3/status/"]
+      test: ["CMD", "curl", "-sf", "http://localhost:24817/pulp/api/v3/status/"]
       interval: 10s
       timeout: 10s
       retries: 5
