@@ -211,5 +211,5 @@ export class PulpAPIClient {
  * @returns Configured PulpAPIClient instance
  */
 export function createAPIClient(request: APIRequestContext): PulpAPIClient {
-  return new PulpAPIClient(request, 'http://localhost:8081/pulp/api/v3')
+  return new PulpAPIClient(request, 'http://localhost:8080/pulp/api/v3')
 }

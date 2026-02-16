@@ -8,7 +8,7 @@ import { getBasicAuthHeader, TEST_CREDENTIALS } from './helpers/auth.js'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const PULP_API_URL = 'http://localhost:8081/pulp/api/v3/status/'
+const PULP_API_URL = 'http://localhost:8080/pulp/api/v3/status/'
 const STORAGE_STATE_PATH = path.join(__dirname, '..', '.auth', 'admin.json')
 const DOCKER_COMPOSE_FILE = 'docker/docker-compose.e2e.yml'
 const HEALTH_CHECK_TIMEOUT_MS = 120_000
@@ -82,7 +82,7 @@ async function authenticateAndSaveState(): Promise<string> {
   }
 
   const context = await request.newContext({
-    baseURL: 'http://localhost:8081',
+    baseURL: 'http://localhost:8080',
   })
 
   const authHeader = getBasicAuthHeader(TEST_CREDENTIALS.username, TEST_CREDENTIALS.password)
