@@ -8,7 +8,8 @@ import { getBasicAuthHeader, TEST_CREDENTIALS } from './helpers/auth.js'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const PULP_API_URL = 'http://localhost:8080/pulp/api/v3/status/'
+// Use internal API port 24817 (nginx on 8080 may not be ready)
+const PULP_API_URL = 'http://localhost:24817/pulp/api/v3/status/'
 const STORAGE_STATE_PATH = path.join(__dirname, '..', '.auth', 'admin.json')
 const DOCKER_COMPOSE_FILE = 'docker/docker-compose.e2e.yml'
 const HEALTH_CHECK_TIMEOUT_MS = 120_000
@@ -91,7 +92,7 @@ async function authenticateAndSaveState(): Promise<string> {
 
   while (Date.now() - startTime < AUTH_RETRY_TIMEOUT_MS) {
     const context = await request.newContext({
-      baseURL: 'http://localhost:8080',
+      baseURL: 'http://localhost:24817',
     })
 
     try {

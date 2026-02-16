@@ -59,6 +59,7 @@ services:
       PULP_CONTENT_ORIGIN: "http://localhost:8080"
     ports:
       - "8080:8080"
+      - "24817:24817"
     tmpfs:
       - /var/lib/pulp
     healthcheck:
