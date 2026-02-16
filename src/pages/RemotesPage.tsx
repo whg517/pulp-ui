@@ -26,11 +26,13 @@ import {
 import { useRemotes, useDeleteRemote } from '@/hooks/useApi'
 import type { PulpRemote } from '@/types/pulp'
 import { formatDistanceToNow } from 'date-fns'
+import { RemoteEditDialog } from '@/components/remotes/RemoteEditDialog'
 
 export function RemotesPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [remoteToDelete, setRemoteToDelete] = useState<PulpRemote | null>(null)
+  const [remoteToEdit, setRemoteToEdit] = useState<PulpRemote | null>(null)
   const pageSize = 10
 
   const { data, isLoading, error, refetch } = useRemotes({
@@ -78,7 +80,7 @@ export function RemotesPage() {
                 className="pl-9"
               />
             </div>
-            <Button variant="outline" size="icon" onClick={() => refetch()}>
+            <Button variant="outline" size="icon" onClick={() => refetch()} aria-label="Refresh">
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
@@ -128,7 +130,7 @@ export function RemotesPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" title="Edit remote">
+                        <Button variant="ghost" size="icon" onClick={() => setRemoteToEdit(remote)} aria-label="Edit remote">
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
@@ -136,7 +138,7 @@ export function RemotesPage() {
                           size="icon"
                           onClick={() => setRemoteToDelete(remote)}
                           disabled={deleteMutation.isPending}
-                          title="Delete remote"
+                          aria-label="Delete remote"
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -197,6 +199,13 @@ export function RemotesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Remote Dialog */}
+      <RemoteEditDialog
+        open={!!remoteToEdit}
+        onOpenChange={(open) => !open && setRemoteToEdit(null)}
+        remote={remoteToEdit}
+      />
     </div>
   )
 }

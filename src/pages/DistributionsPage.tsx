@@ -26,11 +26,13 @@ import {
 import { useDistributions, useDeleteDistribution } from '@/hooks/useApi'
 import type { PulpDistribution } from '@/types/pulp'
 import { formatDistanceToNow } from 'date-fns'
+import { DistributionEditDialog } from '@/components/distributions/DistributionEditDialog'
 
 export function DistributionsPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [distributionToDelete, setDistributionToDelete] = useState<PulpDistribution | null>(null)
+  const [distributionToEdit, setDistributionToEdit] = useState<PulpDistribution | null>(null)
   const pageSize = 10
 
   const { data, isLoading, error, refetch } = useDistributions({
@@ -78,7 +80,7 @@ export function DistributionsPage() {
                 className="pl-9"
               />
             </div>
-            <Button variant="outline" size="icon" onClick={() => refetch()}>
+            <Button variant="outline" size="icon" onClick={() => refetch()} aria-label="Refresh">
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
@@ -138,7 +140,7 @@ export function DistributionsPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" title="Edit distribution">
+                        <Button variant="ghost" size="icon" onClick={() => setDistributionToEdit(dist)} aria-label="Edit distribution">
                           <Edit className="h-4 w-4" />
                         </Button>
                         <Button
@@ -146,7 +148,7 @@ export function DistributionsPage() {
                           size="icon"
                           onClick={() => setDistributionToDelete(dist)}
                           disabled={deleteMutation.isPending}
-                          title="Delete distribution"
+                          aria-label="Delete distribution"
                         >
                           <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
@@ -207,6 +209,13 @@ export function DistributionsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Distribution Dialog */}
+      <DistributionEditDialog
+        open={!!distributionToEdit}
+        onOpenChange={(open) => !open && setDistributionToEdit(null)}
+        distribution={distributionToEdit}
+      />
     </div>
   )
 }

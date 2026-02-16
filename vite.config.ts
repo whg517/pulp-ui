@@ -11,6 +11,8 @@ export default defineConfig({
     },
   },
   server: {
+    // Use port 5174 for E2E tests to avoid conflicts with other projects
+    port: process.env.E2E_TEST ? 5174 : 5173,
     // Proxy Pulp API requests to the backend
     // During E2E tests, use port 24817 (internal API) as nginx on 8080 may not be ready
     // During development, use port 8080 (nginx)

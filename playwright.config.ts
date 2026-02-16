@@ -13,7 +13,7 @@ export default defineConfig({
   globalSetup: fileURLToPath(new URL('./e2e/globalSetup.ts', import.meta.url)),
   globalTeardown: fileURLToPath(new URL('./e2e/globalTeardown.ts', import.meta.url)),
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://localhost:5174',
     // Note: storageState is NOT set globally to allow login tests to work
     // Tests that need authentication should use the authenticatedPage fixture
     trace: 'on-first-retry',
@@ -40,7 +40,7 @@ export default defineConfig({
   ],
   webServer: {
     command: 'E2E_TEST=1 bun dev',
-    url: 'http://localhost:5173',
+    url: 'http://localhost:5174',
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
   },
