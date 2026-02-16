@@ -15,7 +15,54 @@ function generateUniqueName(entityType: string, counter: number): string {
 }
 
 /**
- * Create a Pulp repository
+ * Response type for Pulp async operations that return a task
+ */
+interface PulpTaskResponse {
+  task: string
+}
+
+/**
+ * Check if a response is a task response (async operation)
+ */
+function isTaskResponse(response: unknown): response is PulpTaskResponse {
+  return (
+    typeof response === 'object' &&
+    response !== null &&
+    'task' in response &&
+    typeof (response as PulpTaskResponse).task === 'string'
+  )
+}
+
+/**
+ * Wait for a task to complete and return the created resource
+ * @param api - PulpAPIClient instance
+ * @param taskHref - The href of the task to poll
+ * @param resourceType - The type of resource being created (for error messages)
+ * @returns The created resource from the task's created_resources
+ */
+async function waitForTaskAndGetResource<T>(
+  api: PulpAPIClient,
+  taskHref: string,
+  resourceType: string
+): Promise<T> {
+  const task = await api.pollTask(taskHref)
+
+  if (task.state !== 'completed') {
+    throw new Error(`${resourceType} creation task failed: ${task.error ?? 'Unknown error'}`)
+  }
+
+  // Get the created resource from the task's created_resources
+  if (!task.created_resources || task.created_resources.length === 0) {
+    throw new Error(`${resourceType} creation task completed but no resources were created`)
+  }
+
+  // Fetch and return the created resource
+  const resourceHref = task.created_resources[0]
+  return api.get<T>(resourceHref)
+}
+
+/**
+ * Create a Pulp file repository
  * @param api - PulpAPIClient instance
  * @param overrides - Optional partial repository data to override defaults
  * @returns The created repository with pulp_href
@@ -33,7 +80,14 @@ export async function createRepository(
     ...overrides,
   }
 
-  return api.post<PulpRepository>('/repositories/', body)
+  const response = await api.post<PulpRepository | PulpTaskResponse>('/repositories/file/file/', body)
+
+  // If response is a task, wait for it to complete
+  if (isTaskResponse(response)) {
+    return waitForTaskAndGetResource<PulpRepository>(api, response.task, 'Repository')
+  }
+
+  return response
 }
 
 /**
@@ -55,7 +109,14 @@ export async function createRemote(
     ...overrides,
   }
 
-  return api.post<PulpRemote>('/remotes/file/file/', body)
+  const response = await api.post<PulpRemote | PulpTaskResponse>('/remotes/file/file/', body)
+
+  // If response is a task, wait for it to complete
+  if (isTaskResponse(response)) {
+    return waitForTaskAndGetResource<PulpRemote>(api, response.task, 'Remote')
+  }
+
+  return response
 }
 
 /**
@@ -79,5 +140,12 @@ export async function createDistribution(
     ...overrides,
   }
 
-  return api.post<PulpDistribution>('/distributions/file/file/', body)
+  const response = await api.post<PulpDistribution | PulpTaskResponse>('/distributions/file/file/', body)
+
+  // If response is a task, wait for it to complete
+  if (isTaskResponse(response)) {
+    return waitForTaskAndGetResource<PulpDistribution>(api, response.task, 'Distribution')
+  }
+
+  return response
 }
