@@ -57,11 +57,8 @@ services:
       PULP_SECRET_KEY: "e2e-test-secret-key"
       PULP_ADMIN_PASSWORD: admin
       PULP_CONTENT_ORIGIN: "http://localhost:8080"
-      DJANGO_SETTINGS_MODULE: pulpcore.app.settings
     ports:
       - "8080:8080"
-    volumes:
-      - ./pulp-settings.py:/etc/pulp/settings.py:ro
     tmpfs:
       - /var/lib/pulp
     healthcheck:
