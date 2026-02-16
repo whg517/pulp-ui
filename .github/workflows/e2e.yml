@@ -89,6 +89,15 @@ jobs:
           curl -s http://localhost:8080/pulp/api/v3/status/ -u admin:admin | head -c 500
           echo ""
 
+          # Create admin user (PULP_ADMIN_PASSWORD doesn't auto-create it in ghcr.io/pulp/pulp image)
+          echo "Creating admin user..."
+          docker exec e2e-pulp-api /usr/local/bin/pulpcore-manager shell -c \
+            "from django.contrib.auth import get_user_model; User = get_user_model(); \
+             User.objects.get_or_create(username='admin', defaults={'is_superuser': True, 'is_staff': True}); \
+             u = User.objects.get(username='admin'); u.set_password('admin'); u.save(); \
+             print('Admin user ready')"
+          echo "Admin user created"
+
       - name: Run E2E tests
         run: bun run test:e2e:real
         env:

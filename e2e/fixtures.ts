@@ -2,7 +2,6 @@ import { test as base, type Page } from '@playwright/test'
 import { PulpAPIClient, createAPIClient } from './helpers/api'
 import { createRepository, createRemote, createDistribution } from './helpers/factories'
 import { cleanupManager, CleanupManager } from './helpers/cleanup'
-import { loginViaUI } from './helpers/auth'
 import type { PulpRepository, PulpRemote, PulpDistribution } from '../src/types/pulp'
 
 /**
@@ -73,7 +72,29 @@ export const test = base.extend<{
   },
 
   authenticatedPage: async ({ page }, use) => {
-    await loginViaUI(page)
+    // Load the storage state (auth localStorage) created by globalSetup
+    // This is needed because we don't set storageState globally in playwright.config.ts
+    // to allow login tests to work without being already authenticated
+    const storageStatePath = '.auth/admin.json'
+    // Navigate to the app first to set the origin for localStorage
+    await page.goto('/')
+    // Load and apply the storage state
+    const fs = await import('fs')
+    const storageState = JSON.parse(fs.readFileSync(storageStatePath, 'utf-8'))
+    for (const origin of storageState.origins || []) {
+      for (const item of origin.localStorage || []) {
+        await page.evaluate(
+          ({ name, value }: { name: string; value: string }) => {
+            localStorage.setItem(name, value)
+          },
+          item
+        )
+      }
+    }
+    // Reload to apply the auth state
+    await page.reload()
+    // Wait for the dashboard to load (indicates auth is working)
+    await page.waitForSelector('h1:has-text("Dashboard")', { timeout: 10000 })
     await use(page)
   },
 })

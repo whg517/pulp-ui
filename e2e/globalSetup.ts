@@ -70,6 +70,29 @@ async function waitForPulpHealth(): Promise<void> {
   throw new Error(`Pulp health check timed out after ${HEALTH_CHECK_TIMEOUT_MS / 1000}s`)
 }
 
+/**
+ * Create the admin user in Pulp if it doesn't exist
+ * The PULP_ADMIN_PASSWORD environment variable doesn't automatically create the user
+ * in the ghcr.io/pulp/pulp image, so we need to create it manually
+ */
+function ensureAdminUser(): void {
+  console.log('Ensuring admin user exists...')
+  try {
+    // Check if admin user exists and create if not
+    const result = execCommand(
+      'docker exec e2e-pulp-api /usr/local/bin/pulpcore-manager shell -c ' +
+        '"from django.contrib.auth import get_user_model; User = get_user_model(); ' +
+        'User.objects.get_or_create(username=\\"admin\\", defaults={\\"is_superuser\\": True, \\"is_staff\\": True}); ' +
+        'u = User.objects.get(username=\\"admin\\"); u.set_password(\\"admin\\"); u.save(); ' +
+        'print(\\"Admin user ready\\")"'
+    )
+    console.log(result)
+  } catch (error) {
+    console.log('Warning: Could not ensure admin user exists:', error)
+    // Don't throw - the user might already exist or be created by other means
+  }
+}
+
 const AUTH_RETRY_TIMEOUT_MS = 60_000
 const AUTH_RETRY_INTERVAL_MS = 2_000
 
@@ -185,6 +208,8 @@ export default async function globalSetup() {
     }
     startDockerServices()
     await waitForPulpHealth()
+    // Create admin user if it doesn't exist (PULP_ADMIN_PASSWORD doesn't auto-create it)
+    ensureAdminUser()
   }
 
   const storageStatePath = await authenticateAndSaveState()

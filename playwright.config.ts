@@ -14,7 +14,8 @@ export default defineConfig({
   globalTeardown: fileURLToPath(new URL('./e2e/globalTeardown.ts', import.meta.url)),
   use: {
     baseURL: 'http://localhost:5173',
-    storageState: '.auth/admin.json',
+    // Note: storageState is NOT set globally to allow login tests to work
+    // Tests that need authentication should use the authenticatedPage fixture
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
