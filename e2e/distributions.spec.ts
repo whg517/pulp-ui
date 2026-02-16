@@ -41,24 +41,17 @@ test.describe('Distributions Management Flow', () => {
     }
   })
 
-  test('shows loading skeleton while fetching distributions', async ({ page }) => {
+  test('shows loading skeleton while fetching distributions', async ({ authenticatedPage }) => {
     // Slow down the API response to see loading state
-    await page.route(/.*\/pulp\/api\/v3\/distributions\/(\?.*)?$/, async (route) => {
+    await authenticatedPage.route(/.*\/pulp\/api\/v3\/distributions\/(\?.*)?$/, async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 500))
       await route.continue()
     })
 
-    // Login and navigate
-    await page.goto('/login')
-    await page.getByLabel('Username').fill('admin')
-    await page.getByLabel('Password').fill('admin')
-    await page.getByRole('button', { name: 'Sign in' }).click()
-    await page.waitForURL('/')
-
-    await page.goto('/distributions')
+    await authenticatedPage.goto('/distributions')
 
     // Verify loading skeletons are shown (animate-pulse class)
-    const skeletons = page.locator('[class*="animate-pulse"]')
+    const skeletons = authenticatedPage.locator('[class*="animate-pulse"]')
     await expect(skeletons.first()).toBeVisible()
   })
 
@@ -92,8 +85,9 @@ test.describe('Distributions Management Flow', () => {
     // Verify search input value (auto-retrying assertion)
     await expect(searchInput).toHaveValue(dist.name)
 
-    // Verify the distribution appears in results
-    await expect(authenticatedPage.getByText(dist.name)).toBeVisible()
+    // Wait for search to trigger (the search updates state which triggers a re-fetch)
+    // The distribution should be visible in the table after filtering
+    await expect(authenticatedPage.getByRole('cell', { name: dist.name })).toBeVisible()
   })
 
   test('refreshes distributions list', async ({ authenticatedPage, factory }) => {
