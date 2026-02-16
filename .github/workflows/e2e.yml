@@ -32,12 +32,16 @@ jobs:
           docker compose -f docker/docker-compose.e2e.yml up -d
           echo "Waiting for Pulp to be healthy..."
 
+          # Show container status for debugging
+          docker compose -f docker/docker-compose.e2e.yml ps
+
           # Wait up to 10 minutes for Pulp to be ready
           # Require 3 consecutive successful health checks to ensure stability
           CONSECUTIVE_SUCCESS=0
           REQUIRED_SUCCESS=3
           for i in $(seq 1 60); do
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/pulp/api/v3/status/ -u admin:admin || echo "000")
+            # Get HTTP code, handle connection failures gracefully
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 http://localhost:8080/pulp/api/v3/status/ -u admin:admin 2>/dev/null || echo "000")
             if [ "$HTTP_CODE" = "200" ]; then
               CONSECUTIVE_SUCCESS=$((CONSECUTIVE_SUCCESS + 1))
               echo "Health check passed ($CONSECUTIVE_SUCCESS/$REQUIRED_SUCCESS)"
@@ -48,6 +52,13 @@ jobs:
             else
               echo "Health check returned $HTTP_CODE, resetting counter"
               CONSECUTIVE_SUCCESS=0
+              # Show Pulp logs if health check fails (for debugging)
+              if [ $((i % 10)) -eq 0 ]; then
+                echo "=== Pulp container logs (last 20 lines) ==="
+                docker logs e2e-pulp-api --tail 20 2>&1 || true
+                echo "=== Container status ==="
+                docker compose -f docker/docker-compose.e2e.yml ps
+              fi
             fi
             echo "Waiting... ($i/60)"
             sleep 10
@@ -55,7 +66,8 @@ jobs:
 
           # Final verification
           if [ $CONSECUTIVE_SUCCESS -lt $REQUIRED_SUCCESS ]; then
-            echo "Pulp failed to become stable"
+            echo "Pulp failed to become stable - showing logs"
+            docker logs e2e-pulp-api --tail 100 2>&1 || true
             exit 1
           fi
 
