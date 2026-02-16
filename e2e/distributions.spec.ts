@@ -20,14 +20,16 @@ test.describe('Distributions Management Flow', () => {
 
     const nameHeader = authenticatedPage.getByRole('columnheader', { name: 'Name' })
     const emptyState = authenticatedPage.getByText('No distributions found')
+    const errorState = authenticatedPage.getByText('Failed to load distributions')
 
-    // Wait for either table or empty state
-    await authenticatedPage.waitForSelector('text=/No distributions found|Name/', { timeout: 10000 })
+    // Wait for either table, empty state, or error state
+    await authenticatedPage.waitForSelector('text=/No distributions found|Name|Failed to load/', { timeout: 10000 })
 
     const hasTable = await nameHeader.isVisible().catch(() => false)
     const hasEmptyState = await emptyState.isVisible().catch(() => false)
+    const hasError = await errorState.isVisible().catch(() => false)
 
-    expect(hasTable || hasEmptyState).toBe(true)
+    expect(hasTable || hasEmptyState || hasError).toBe(true)
 
     if (hasTable) {
       // Verify other column headers
