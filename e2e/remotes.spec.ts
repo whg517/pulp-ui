@@ -203,8 +203,8 @@ test.describe('Remotes Management Flow', () => {
   })
 
   test('shows error state when API fails', async ({ authenticatedPage }) => {
-    // Mock error response using targeted route
-    await authenticatedPage.route('**/pulp/api/v3/remotes/file/file/**', async (route) => {
+    // Mock error response using targeted route - match the file remotes endpoint
+    await authenticatedPage.route(/.*\/pulp\/api\/v3\/remotes\/file\/file\/(\?.*)?$/, async (route) => {
       await route.fulfill({
         status: 500,
         contentType: 'application/json',

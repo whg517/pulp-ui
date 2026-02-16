@@ -24,14 +24,19 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
+    // Only run firefox and webkit in local development for faster CI
+    ...(process.env.CI
+      ? []
+      : [
+          {
+            name: 'firefox',
+            use: { ...devices['Desktop Firefox'] },
+          },
+          {
+            name: 'webkit',
+            use: { ...devices['Desktop Safari'] },
+          },
+        ]),
   ],
   webServer: {
     command: 'E2E_TEST=1 bun dev',

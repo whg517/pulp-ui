@@ -76,23 +76,27 @@ export const test = base.extend<{
     // This is needed because we don't set storageState globally in playwright.config.ts
     // to allow login tests to work without being already authenticated
     const storageStatePath = '.auth/admin.json'
-    // Navigate to the app first to set the origin for localStorage
-    await page.goto('/')
-    // Load and apply the storage state
+    // Load and apply the storage state via addInitScript to set it BEFORE page loads
     const fs = await import('fs')
     const storageState = JSON.parse(fs.readFileSync(storageStatePath, 'utf-8'))
+
+    // Build localStorage object for injection
+    const localStorageItems: { name: string; value: string }[] = []
     for (const origin of storageState.origins || []) {
       for (const item of origin.localStorage || []) {
-        await page.evaluate(
-          ({ name, value }: { name: string; value: string }) => {
-            localStorage.setItem(name, value)
-          },
-          item
-        )
+        localStorageItems.push(item)
       }
     }
-    // Reload to apply the auth state
-    await page.reload()
+
+    // Add init script to set localStorage before page loads
+    await page.addInitScript((items) => {
+      for (const { name, value } of items) {
+        localStorage.setItem(name, value)
+      }
+    }, localStorageItems)
+
+    // Now navigate to the app - auth state will already be set
+    await page.goto('/')
     // Wait for the dashboard to load (indicates auth is working)
     await page.waitForSelector('h1:has-text("Dashboard")', { timeout: 10000 })
     await use(page)
