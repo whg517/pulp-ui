@@ -60,7 +60,7 @@ services:
       - "8080:80"
       - "24817:24817"
     volumes:
-      - ../pulp-settings.py:/etc/pulp/settings.py:ro
+      - ./pulp-settings.py:/etc/pulp/settings.py:ro
     tmpfs:
       - /var/lib/pulp
     healthcheck:
@@ -87,23 +87,31 @@ services:
       # Admin password from pulp service (for consistency)
       PULP_ADMIN_PASSWORD: admin
     volumes:
-      - ../pulp-settings.py:/etc/pulp/settings.py:ro
+      - ./pulp-settings.py:/etc/pulp/settings.py:ro
     # Create admin user and exit
-    command: >
-      /bin/bash -c "
-        echo 'Creating admin user...';
-        /usr/local/bin/pulpcore-manager shell -c '
-          from django.contrib.auth import get_user_model;
-          import os;
-          User = get_user_model();
-          password = os.environ.get(\"PULP_ADMIN_PASSWORD\", \"admin\");
-          if not User.objects.filter(username=\"admin\").exists():
-            User.objects.create_superuser(\"admin\", \"admin@example.com\", password);
-            print(\"Admin user created\");
-          else:
-            print(\"Admin user already exists\");
-        ' 2>/dev/null || echo 'Admin user setup complete';
-      "
+    # Note: Must create DB encryption key before pulpcore-manager can run
+    command:
+      - /bin/bash
+      - -c
+      - |
+        echo 'Creating admin user...'
+        # Create the database encryption key directory and key if missing
+        mkdir -p /etc/pulp/certs
+        if [ ! -f /etc/pulp/certs/database_fields.symmetric.key ]; then
+          openssl rand -base64 32 > /etc/pulp/certs/database_fields.symmetric.key
+        fi
+        /usr/local/bin/pulpcore-manager shell << 'PYTHON'
+        from django.contrib.auth import get_user_model
+        import os
+        User = get_user_model()
+        password = os.environ.get('PULP_ADMIN_PASSWORD', 'admin')
+        if not User.objects.filter(username='admin').exists():
+            User.objects.create_superuser('admin', 'admin@example.com', password)
+            print('Admin user created')
+        else:
+            print('Admin user already exists')
+        PYTHON
+        echo 'Admin user setup complete'
 
   # UI container for containerized E2E testing
   # Runs in development mode with Vite dev server
