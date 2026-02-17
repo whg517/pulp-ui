@@ -84,6 +84,8 @@ services:
       PULP_DB_USER: pulp
       PULP_DB_PASSWORD: pulp
       PULP_DB_NAME: pulp
+      # Admin password from pulp service (for consistency)
+      PULP_ADMIN_PASSWORD: admin
     volumes:
       - ../pulp-settings.py:/etc/pulp/settings.py:ro
     # Create admin user and exit
@@ -92,9 +94,11 @@ services:
         echo 'Creating admin user...';
         /usr/local/bin/pulpcore-manager shell -c '
           from django.contrib.auth import get_user_model;
+          import os;
           User = get_user_model();
+          password = os.environ.get(\"PULP_ADMIN_PASSWORD\", \"admin\");
           if not User.objects.filter(username=\"admin\").exists():
-            User.objects.create_superuser(\"admin\", \"admin@example.com\", \"admin\");
+            User.objects.create_superuser(\"admin\", \"admin@example.com\", password);
             print(\"Admin user created\");
           else:
             print(\"Admin user already exists\");

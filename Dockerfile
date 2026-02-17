@@ -55,8 +55,14 @@ RUN bun install --frozen-lockfile
 # Copy source code
 COPY . .
 
+# Create non-root user for security (Debian-based image)
+RUN groupadd -g 1001 bunuser && useradd -u 1001 -g bunuser -s /bin/bash -m bunuser
+
 # Expose Vite dev server port
 EXPOSE 5173
+
+# Switch to non-root user
+USER bunuser
 
 # Start development server
 CMD ["bun", "run", "dev", "--host", "0.0.0.0"]

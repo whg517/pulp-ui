@@ -1,6 +1,14 @@
 # Production Docker Compose configuration
 # Full stack deployment with Pulp backend and UI frontend
 # Usage: docker compose -f docker/docker-compose.prod.yml up -d
+#
+# REQUIRED ENVIRONMENT VARIABLES:
+#   PULP_SECRET_KEY - Django secret key (generate with: openssl rand -hex 32)
+#   PULP_ADMIN_PASSWORD - Admin user password
+#   PULP_DB_PASSWORD - PostgreSQL password
+#
+# OPTIONAL:
+#   PULP_CONTENT_ORIGIN - Public URL for content serving (default: http://localhost:8080)
 
 services:
   postgres:
@@ -9,7 +17,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: pulp
-      POSTGRES_PASSWORD: ${PULP_DB_PASSWORD:-pulp}
+      POSTGRES_PASSWORD: ${PULP_DB_PASSWORD:?PULP_DB_PASSWORD must be set}
       POSTGRES_DB: pulp
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -18,6 +26,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - backend
 
   redis:
     image: docker.io/library/redis:7
@@ -30,6 +40,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - backend
 
   pulp:
     image: pulp/pulp:latest
@@ -44,12 +56,12 @@ services:
       PULP_DB_HOST: postgres
       PULP_DB_PORT: 5432
       PULP_DB_USER: pulp
-      PULP_DB_PASSWORD: ${PULP_DB_PASSWORD:-pulp}
+      PULP_DB_PASSWORD: ${PULP_DB_PASSWORD:?PULP_DB_PASSWORD must be set}
       PULP_DB_NAME: pulp
       PULP_REDIS_HOST: redis
       PULP_REDIS_PORT: 6379
-      PULP_SECRET_KEY: ${PULP_SECRET_KEY:-change-this-secret-key}
-      PULP_ADMIN_PASSWORD: ${PULP_ADMIN_PASSWORD:-admin}
+      PULP_SECRET_KEY: ${PULP_SECRET_KEY:?PULP_SECRET_KEY must be set}
+      PULP_ADMIN_PASSWORD: ${PULP_ADMIN_PASSWORD:?PULP_ADMIN_PASSWORD must be set}
       PULP_CONTENT_ORIGIN: ${PULP_CONTENT_ORIGIN:-http://localhost:8080}
       DJANGO_SETTINGS_MODULE: pulpcore.app.settings
     volumes:
@@ -61,6 +73,9 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    networks:
+      - backend
+      - frontend
 
   # Pulp UI Frontend
   ui:
@@ -81,6 +96,14 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+    networks:
+      - frontend
+
+networks:
+  backend:
+    driver: bridge
+  frontend:
+    driver: bridge
 
 volumes:
   postgres_data:
