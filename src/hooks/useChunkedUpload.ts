@@ -7,6 +7,10 @@ import { CHUNK_SIZE } from '@/types/upload'
 interface UseChunkedUploadOptions {
   onSuccess?: (artifactHref: string) => void
   onError?: (error: string) => void
+  /** Maximum retry attempts for failed chunks (default: 3) */
+  maxRetries?: number
+  /** Base delay in ms for exponential backoff (default: 1000) */
+  retryBaseDelay?: number
 }
 
 interface UseChunkedUploadReturn {
@@ -27,8 +31,13 @@ async function calculateSHA256(file: File): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
+// Sleep utility for retry delays
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
 export function useChunkedUpload(options: UseChunkedUploadOptions = {}): UseChunkedUploadReturn {
-  const { onSuccess, onError } = options
+  const { onSuccess, onError, maxRetries = 3, retryBaseDelay = 1000 } = options
   const [uploadState, setUploadState] = useState<FileUploadState | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -113,59 +122,76 @@ export function useChunkedUpload(options: UseChunkedUploadOptions = {}): UseChun
 
     const contentRange = `bytes ${start}-${end - 1}/${file.size}`
 
-    try {
-      // Update chunk status to uploading
-      setUploadState(prev => {
-        if (!prev) return null
-        const newChunks = [...prev.chunks]
-        newChunks[chunkIndex] = { ...newChunks[chunkIndex], status: 'uploading' }
-        return { ...prev, chunks: newChunks }
-      })
+    // Retry logic with exponential backoff
+    let lastError: string = 'Chunk upload failed'
 
-      const response = await pulpApi.updateUploadChunk(
-        uploadState.uploadHref,
-        chunkIndex,
-        contentRange,
-        chunk
-      )
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        // Update chunk status to uploading
+        setUploadState(prev => {
+          if (!prev) return null
+          const newChunks = [...prev.chunks]
+          newChunks[chunkIndex] = { ...newChunks[chunkIndex], status: 'uploading' }
+          return { ...prev, chunks: newChunks }
+        })
 
-      if (!response.ok) {
-        throw new Error(`Upload failed with status ${response.status}`)
-      }
+        const response = await pulpApi.updateUploadChunk(
+          uploadState.uploadHref,
+          chunkIndex,
+          contentRange,
+          chunk
+        )
 
-      // Update chunk status to completed
-      setUploadState(prev => {
-        if (!prev) return null
-        const newChunks = [...prev.chunks]
-        newChunks[chunkIndex] = {
-          ...newChunks[chunkIndex],
-          uploaded: chunkSize,
-          percentage: 100,
-          status: 'completed',
+        if (!response.ok) {
+          // Try to extract error details from response
+          let errorDetail = `Upload failed with status ${response.status}`
+          try {
+            const errorData = await response.json()
+            errorDetail = errorData.detail || errorDetail
+          } catch { /* ignore parse errors */ }
+          throw new Error(errorDetail)
         }
 
-        // Calculate overall progress
-        const totalUploaded = newChunks.reduce((sum, c) => sum + c.uploaded, 0)
-        const overallProgress = Math.round((totalUploaded / file.size) * 100)
+        // Update chunk status to completed
+        setUploadState(prev => {
+          if (!prev) return null
+          const newChunks = [...prev.chunks]
+          newChunks[chunkIndex] = {
+            ...newChunks[chunkIndex],
+            uploaded: chunkSize,
+            percentage: 100,
+            status: 'completed',
+          }
 
-        return { ...prev, chunks: newChunks, overallProgress }
-      })
+          // Calculate overall progress
+          const totalUploaded = newChunks.reduce((sum, c) => sum + c.uploaded, 0)
+          const overallProgress = Math.round((totalUploaded / file.size) * 100)
 
-      return { success: true }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Chunk upload failed'
+          return { ...prev, chunks: newChunks, overallProgress }
+        })
 
-      // Update chunk status to failed
-      setUploadState(prev => {
-        if (!prev) return null
-        const newChunks = [...prev.chunks]
-        newChunks[chunkIndex] = { ...newChunks[chunkIndex], status: 'failed' }
-        return { ...prev, chunks: newChunks }
-      })
+        return { success: true }
+      } catch (error) {
+        lastError = error instanceof Error ? error.message : 'Chunk upload failed'
 
-      return { success: false, error: errorMessage }
+        // If not the last attempt, wait with exponential backoff before retrying
+        if (attempt < maxRetries) {
+          const delay = retryBaseDelay * Math.pow(2, attempt)
+          await sleep(delay)
+        }
+      }
     }
-  }, [uploadState])
+
+    // All retries failed
+    setUploadState(prev => {
+      if (!prev) return null
+      const newChunks = [...prev.chunks]
+      newChunks[chunkIndex] = { ...newChunks[chunkIndex], status: 'failed' }
+      return { ...prev, chunks: newChunks }
+    })
+
+    return { success: false, error: lastError }
+  }, [uploadState, maxRetries, retryBaseDelay])
 
   const uploadAllChunks = useCallback(async () => {
     if (!uploadState?.chunks) return

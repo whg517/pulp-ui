@@ -18,12 +18,53 @@ export interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>
 }
 
+/**
+ * Authentication header retrieval
+ *
+ * SECURITY NOTE: Credentials are stored in localStorage as base64-encoded strings.
+ * While not plaintext, this approach has security implications:
+ * - Vulnerable to XSS attacks (any JavaScript on the same origin can access localStorage)
+ * - Base64 is encoding, not encryption - credentials can be easily decoded
+ *
+ * For production deployments, consider:
+ * - Using HttpOnly cookies for session management (server-side sessions)
+ * - Implementing token-based authentication with short-lived access tokens
+ * - Using external authentication providers (OAuth2, OIDC, Keycloak)
+ *
+ * This implementation is suitable for development and internal tools where
+ * convenience outweighs security concerns. For public-facing deployments,
+ * additional security measures should be implemented.
+ */
 function getAuthHeader(): HeadersInit {
   const auth = localStorage.getItem('pulp_auth')
   if (auth) {
     return { Authorization: `Basic ${auth}` }
   }
   return {}
+}
+
+/**
+ * Validates and sanitizes HREF parameters
+ *
+ * Ensures HREF values follow expected Pulp API format before processing.
+ * Logs warnings for unexpected formats without blocking the request.
+ *
+ * @param href - The HREF to sanitize
+ * @returns The sanitized HREF with API_BASE_PATH removed
+ */
+function sanitizeHref(href: string): string {
+  if (!href) {
+    console.warn('Empty HREF provided to API client')
+    return ''
+  }
+
+  // Check for expected format
+  if (!href.startsWith(API_BASE_PATH)) {
+    console.warn('Unexpected HREF format (does not start with API_BASE_PATH):', href)
+  }
+
+  // Remove API base path for internal processing
+  return href.replace(API_BASE_PATH, '')
 }
 
 function buildUrl(endpoint: string, params?: Record<string, string | number | boolean | undefined>): string {
@@ -109,22 +150,22 @@ export const pulpApi = {
   getRepositories: (params?: Record<string, string | number | boolean | undefined>) =>
     apiPaginatedRequest('/repositories/', { params }),
 
-  getRepository: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+  getRepository: (href: string) => apiRequest(sanitizeHref(href)),
 
   createRepository: (data: Partial<Record<string, unknown>>) =>
     apiRequest('/repositories/', { method: 'POST', body: JSON.stringify(data) }),
 
   updateRepository: (href: string, data: Partial<Record<string, unknown>>) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), {
+    apiRequest(sanitizeHref(href), {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
 
   deleteRepository: (href: string) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), { method: 'DELETE' }),
+    apiRequest(sanitizeHref(href), { method: 'DELETE' }),
 
   syncRepository: (href: string, remote?: string) =>
-    apiRequest(`${href.replace(API_BASE_PATH, '')}sync/`, {
+    apiRequest(`${sanitizeHref(href)}sync/`, {
       method: 'POST',
       body: JSON.stringify(remote ? { remote } : {}),
     }),
@@ -133,46 +174,46 @@ export const pulpApi = {
   getRemotes: (params?: Record<string, string | number | boolean | undefined>) =>
     apiPaginatedRequest('/remotes/', { params }),
 
-  getRemote: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+  getRemote: (href: string) => apiRequest(sanitizeHref(href)),
 
   createRemote: (data: Partial<Record<string, unknown>>) =>
     apiRequest('/remotes/', { method: 'POST', body: JSON.stringify(data) }),
 
   updateRemote: (href: string, data: Partial<Record<string, unknown>>) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), {
+    apiRequest(sanitizeHref(href), {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
 
   deleteRemote: (href: string) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), { method: 'DELETE' }),
+    apiRequest(sanitizeHref(href), { method: 'DELETE' }),
 
   // Distributions
   getDistributions: (params?: Record<string, string | number | boolean | undefined>) =>
     apiPaginatedRequest('/distributions/', { params }),
 
-  getDistribution: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+  getDistribution: (href: string) => apiRequest(sanitizeHref(href)),
 
   createDistribution: (data: Partial<Record<string, unknown>>) =>
     apiRequest('/distributions/', { method: 'POST', body: JSON.stringify(data) }),
 
   updateDistribution: (href: string, data: Partial<Record<string, unknown>>) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), {
+    apiRequest(sanitizeHref(href), {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
 
   deleteDistribution: (href: string) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), { method: 'DELETE' }),
+    apiRequest(sanitizeHref(href), { method: 'DELETE' }),
 
   // Tasks
   getTasks: (params?: Record<string, string | number | boolean | undefined>) =>
     apiPaginatedRequest('/tasks/', { params }),
 
-  getTask: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+  getTask: (href: string) => apiRequest(sanitizeHref(href)),
 
   cancelTask: (href: string) =>
-    apiRequest(`${href.replace(API_BASE_PATH, '')}cancel/`, { method: 'POST' }),
+    apiRequest(`${sanitizeHref(href)}cancel/`, { method: 'POST' }),
 
   // Content
   getContent: (params?: Record<string, string | number | boolean | undefined>) =>
@@ -182,37 +223,37 @@ export const pulpApi = {
   getPublications: (params?: Record<string, string | number | boolean | undefined>) =>
     apiPaginatedRequest('/publications/', { params }),
 
-  getPublication: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+  getPublication: (href: string) => apiRequest(sanitizeHref(href)),
 
   createPublication: (data: Partial<Record<string, unknown>>) =>
     apiRequest('/publications/', { method: 'POST', body: JSON.stringify(data) }),
 
   deletePublication: (href: string) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), { method: 'DELETE' }),
+    apiRequest(sanitizeHref(href), { method: 'DELETE' }),
 
   // Repository Versions
   getRepositoryVersions: (repoHref: string, params?: Record<string, string | number | boolean | undefined>) =>
     apiPaginatedRequest(`${repoHref.replace(API_BASE_PATH, '')}versions/`, { params }),
 
-  getRepositoryVersion: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+  getRepositoryVersion: (href: string) => apiRequest(sanitizeHref(href)),
 
   deleteRepositoryVersion: (href: string) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), { method: 'DELETE' }),
+    apiRequest(sanitizeHref(href), { method: 'DELETE' }),
 
   repairRepositoryVersion: (href: string) =>
-    apiRequest(`${href.replace(API_BASE_PATH, '')}repair/`, { method: 'POST' }),
+    apiRequest(`${sanitizeHref(href)}repair/`, { method: 'POST' }),
 
   // Uploads
   getUploads: (params?: Record<string, string | number | boolean | undefined>) =>
     apiPaginatedRequest('/uploads/', { params }),
 
-  getUpload: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+  getUpload: (href: string) => apiRequest(sanitizeHref(href)),
 
   createUpload: (data: { size: number; chunk_size?: number }) =>
     apiRequest('/uploads/', { method: 'POST', body: JSON.stringify(data) }),
 
   updateUploadChunk: (href: string, chunkIndex: number, contentRange: string, data: Blob) => {
-    const url = buildUrl(`${href.replace(API_BASE_PATH, '')}chunks/${chunkIndex}/`)
+    const url = buildUrl(`${sanitizeHref(href)}chunks/${chunkIndex}/`)
     return fetch(url, {
       method: 'PUT',
       headers: {
@@ -224,55 +265,55 @@ export const pulpApi = {
   },
 
   commitUpload: (href: string, sha256: string) =>
-    apiRequest(`${href.replace(API_BASE_PATH, '')}commit/`, {
+    apiRequest(`${sanitizeHref(href)}commit/`, {
       method: 'POST',
       body: JSON.stringify({ sha256 }),
     }),
 
   deleteUpload: (href: string) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), { method: 'DELETE' }),
+    apiRequest(sanitizeHref(href), { method: 'DELETE' }),
 
   // Users
   getUsers: (params?: Record<string, string | number | boolean | undefined>) =>
     apiPaginatedRequest('/users/', { params }),
 
-  getUser: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+  getUser: (href: string) => apiRequest(sanitizeHref(href)),
 
   createUser: (data: Partial<Record<string, unknown>>) =>
     apiRequest('/users/', { method: 'POST', body: JSON.stringify(data) }),
 
   updateUser: (href: string, data: Partial<Record<string, unknown>>) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), {
+    apiRequest(sanitizeHref(href), {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
 
   deleteUser: (href: string) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), { method: 'DELETE' }),
+    apiRequest(sanitizeHref(href), { method: 'DELETE' }),
 
   // Groups
   getGroups: (params?: Record<string, string | number | boolean | undefined>) =>
     apiPaginatedRequest('/groups/', { params }),
 
-  getGroup: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+  getGroup: (href: string) => apiRequest(sanitizeHref(href)),
 
   createGroup: (data: Partial<Record<string, unknown>>) =>
     apiRequest('/groups/', { method: 'POST', body: JSON.stringify(data) }),
 
   updateGroup: (href: string, data: Partial<Record<string, unknown>>) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), {
+    apiRequest(sanitizeHref(href), {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
 
   deleteGroup: (href: string) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), { method: 'DELETE' }),
+    apiRequest(sanitizeHref(href), { method: 'DELETE' }),
 
   // Workers
   getWorkers: (params?: Record<string, string | number | boolean | undefined>) =>
     apiPaginatedRequest('/workers/', { params }),
 
-  getWorker: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+  getWorker: (href: string) => apiRequest(sanitizeHref(href)),
 
   // Orphans
   getOrphans: (params?: Record<string, string | number | boolean | undefined>) =>
@@ -285,16 +326,16 @@ export const pulpApi = {
   getSigningServices: (params?: Record<string, string | number | boolean | undefined>) =>
     apiPaginatedRequest('/signing-services/', { params }),
 
-  getSigningService: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+  getSigningService: (href: string) => apiRequest(sanitizeHref(href)),
 
   // Access Policies
   getAccessPolicies: (params?: Record<string, string | number | boolean | undefined>) =>
     apiPaginatedRequest('/access_policies/', { params }),
 
-  getAccessPolicy: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+  getAccessPolicy: (href: string) => apiRequest(sanitizeHref(href)),
 
   updateAccessPolicy: (href: string, data: Partial<Record<string, unknown>>) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), {
+    apiRequest(sanitizeHref(href), {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
@@ -303,34 +344,34 @@ export const pulpApi = {
   getDomains: (params?: Record<string, string | number | boolean | undefined>) =>
     apiPaginatedRequest('/domains/', { params }),
 
-  getDomain: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+  getDomain: (href: string) => apiRequest(sanitizeHref(href)),
 
   createDomain: (data: Partial<Record<string, unknown>>) =>
     apiRequest('/domains/', { method: 'POST', body: JSON.stringify(data) }),
 
   updateDomain: (href: string, data: Partial<Record<string, unknown>>) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), {
+    apiRequest(sanitizeHref(href), {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
 
   deleteDomain: (href: string) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), { method: 'DELETE' }),
+    apiRequest(sanitizeHref(href), { method: 'DELETE' }),
 
   // Artifacts
   getArtifacts: (params?: Record<string, string | number | boolean | undefined>) =>
     apiPaginatedRequest('/artifacts/', { params }),
 
-  getArtifact: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+  getArtifact: (href: string) => apiRequest(sanitizeHref(href)),
 
   deleteArtifact: (href: string) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), { method: 'DELETE' }),
+    apiRequest(sanitizeHref(href), { method: 'DELETE' }),
 
   // Imports
   getImports: (params?: Record<string, string | number | boolean | undefined>) =>
     apiPaginatedRequest('/import/core/import/', { params }),
 
-  getImport: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+  getImport: (href: string) => apiRequest(sanitizeHref(href)),
 
   createImport: (data: { path: string; create_repositories?: boolean; parallel?: boolean }) =>
     apiRequest('/import/core/import/', { method: 'POST', body: JSON.stringify(data) }),
@@ -339,7 +380,7 @@ export const pulpApi = {
   getExports: (params?: Record<string, string | number | boolean | undefined>) =>
     apiPaginatedRequest('/export/core/pulpexport/', { params }),
 
-  getExport: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+  getExport: (href: string) => apiRequest(sanitizeHref(href)),
 
   createExport: (data: {
     start_repository_version: string
@@ -348,28 +389,28 @@ export const pulpApi = {
   }) => apiRequest('/export/core/pulpexport/', { method: 'POST', body: JSON.stringify(data) }),
 
   getExportFiles: (href: string) =>
-    apiRequest(`${href.replace(API_BASE_PATH, '')}export-files/`),
+    apiRequest(`${sanitizeHref(href)}export-files/`),
 
   // Content Guards
   getContentGuards: (params?: Record<string, string | number | boolean | undefined>) =>
     apiPaginatedRequest('/contentguards/', { params }),
 
-  getContentGuard: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+  getContentGuard: (href: string) => apiRequest(sanitizeHref(href)),
 
   deleteContentGuard: (href: string) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), { method: 'DELETE' }),
+    apiRequest(sanitizeHref(href), { method: 'DELETE' }),
 
   // Certificate Guards
   getCertGuards: (params?: Record<string, string | number | boolean | undefined>) =>
     apiPaginatedRequest('/contentguards/certguard/', { params }),
 
-  getCertGuard: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+  getCertGuard: (href: string) => apiRequest(sanitizeHref(href)),
 
   createCertGuard: (data: { name: string; ca_certificate: string; description?: string }) =>
     apiRequest('/contentguards/certguard/', { method: 'POST', body: JSON.stringify(data) }),
 
   updateCertGuard: (href: string, data: Partial<Record<string, unknown>>) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), {
+    apiRequest(sanitizeHref(href), {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
@@ -378,13 +419,13 @@ export const pulpApi = {
   getRBACGuards: (params?: Record<string, string | number | boolean | undefined>) =>
     apiPaginatedRequest('/contentguards/rbac/', { params }),
 
-  getRBACGuard: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+  getRBACGuard: (href: string) => apiRequest(sanitizeHref(href)),
 
   createRBACGuard: (data: { name: string; description?: string }) =>
     apiRequest('/contentguards/rbac/', { method: 'POST', body: JSON.stringify(data) }),
 
   updateRBACGuard: (href: string, data: Partial<Record<string, unknown>>) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), {
+    apiRequest(sanitizeHref(href), {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
@@ -393,37 +434,37 @@ export const pulpApi = {
   getSchedules: (params?: Record<string, string | number | boolean | undefined>) =>
     apiPaginatedRequest('/schedules/', { params }),
 
-  getSchedule: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+  getSchedule: (href: string) => apiRequest(sanitizeHref(href)),
 
   createSchedule: (data: Partial<Record<string, unknown>>) =>
     apiRequest('/schedules/', { method: 'POST', body: JSON.stringify(data) }),
 
   updateSchedule: (href: string, data: Partial<Record<string, unknown>>) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), {
+    apiRequest(sanitizeHref(href), {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
 
   deleteSchedule: (href: string) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), { method: 'DELETE' }),
+    apiRequest(sanitizeHref(href), { method: 'DELETE' }),
 
   // Roles
   getRoles: (params?: Record<string, string | number | boolean | undefined>) =>
     apiPaginatedRequest('/roles/', { params }),
 
-  getRole: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+  getRole: (href: string) => apiRequest(sanitizeHref(href)),
 
   createRole: (data: { name: string; description?: string; permissions: string[] }) =>
     apiRequest('/roles/', { method: 'POST', body: JSON.stringify(data) }),
 
   updateRole: (href: string, data: Partial<Record<string, unknown>>) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), {
+    apiRequest(sanitizeHref(href), {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
 
   deleteRole: (href: string) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), { method: 'DELETE' }),
+    apiRequest(sanitizeHref(href), { method: 'DELETE' }),
 
   // Permissions
   getPermissions: (params?: Record<string, string | number | boolean | undefined>) =>
@@ -443,8 +484,8 @@ export const pulpApi = {
     }),
 
   deleteACS: (href: string) =>
-    apiRequest(href.replace(API_BASE_PATH, ''), { method: 'DELETE' }),
+    apiRequest(sanitizeHref(href), { method: 'DELETE' }),
 
   refreshACS: (href: string) =>
-    apiRequest(`${href.replace(API_BASE_PATH, '')}refresh/`, { method: 'POST' }),
+    apiRequest(`${sanitizeHref(href)}refresh/`, { method: 'POST' }),
 }

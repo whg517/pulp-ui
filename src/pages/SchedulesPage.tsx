@@ -36,6 +36,23 @@ import { ScheduleForm, useScheduleForm, type ScheduleFormData } from '@/componen
 import type { PulpSchedule } from '@/types/pulp'
 import { formatDistanceToNow, format } from 'date-fns'
 
+// Helper function to parse JSON with error handling
+function parseJsonArguments(jsonString: string | undefined): { data: Record<string, unknown>; error: string | null } {
+  if (!jsonString?.trim()) {
+    return { data: {}, error: null }
+  }
+  try {
+    const parsed = JSON.parse(jsonString)
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return { data: {}, error: 'Arguments must be a JSON object' }
+    }
+    return { data: parsed, error: null }
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'Invalid JSON format'
+    return { data: {}, error: `Invalid JSON: ${message}` }
+  }
+}
+
 export function SchedulesPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -69,14 +86,11 @@ export function SchedulesPage() {
     }
   }
 
-  const handleCreate = async (formData: ScheduleFormData) => {
-    let args = {}
-    if (formData.arguments) {
-      try {
-        args = JSON.parse(formData.arguments)
-      } catch {
-        args = {}
-      }
+  const handleCreate = (formData: ScheduleFormData) => {
+    const { data: args, error } = parseJsonArguments(formData.arguments)
+    if (error) {
+      createForm.setError('arguments', { message: error })
+      return
     }
 
     const payload = {
@@ -96,16 +110,13 @@ export function SchedulesPage() {
     })
   }
 
-  const handleEdit = async (formData: ScheduleFormData) => {
+  const handleEdit = (formData: ScheduleFormData) => {
     if (!scheduleToEdit) return
 
-    let args = {}
-    if (formData.arguments) {
-      try {
-        args = JSON.parse(formData.arguments)
-      } catch {
-        args = {}
-      }
+    const { data: args, error } = parseJsonArguments(formData.arguments)
+    if (error) {
+      editForm.setError('arguments', { message: error })
+      return
     }
 
     const payload = {
