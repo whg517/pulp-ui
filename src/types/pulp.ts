@@ -271,3 +271,51 @@ export interface PulpExport {
   }
   output_file_info: Record<string, { sha256: string; size: number }>
 }
+
+export interface PulpExportFileInfo {
+  filename: string
+  sha256: string
+  size: number
+  download_url: string
+}
+
+export interface PulpSchedule {
+  pulp_href: string
+  pulp_created: string
+  pulp_last_updated: string | null
+  name: string
+  task: string
+  cron: string
+  next_run: string | null
+  last_run: string | null
+  enabled: boolean
+  arguments: Record<string, unknown>
+  concurrency_limit: number | null
+}
+
+export interface PulpContentGuard {
+  pulp_href: string
+  pulp_created: string
+  pulp_last_updated: string | null
+  name: string
+  description: string | null
+}
+
+export interface PulpCertGuard extends PulpContentGuard {
+  ca_certificate: string
+}
+
+export type PulpRBACGuard = PulpContentGuard
+
+export interface PulpACS {
+  pulp_href: string
+  pulp_created: string
+  pulp_last_updated: string | null
+  name: string
+  url: string
+  paths: string[]
+  tls_validation: boolean
+  username?: string
+  last_refreshed?: string | null
+  type?: 'rpm' | 'file'
+}

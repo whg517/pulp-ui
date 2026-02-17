@@ -5,6 +5,8 @@ import { FormInput } from '@/components/forms/FormInput'
 import { FormTextarea } from '@/components/forms/FormTextarea'
 import { FormSelect } from '@/components/forms/FormSelect'
 import { FormSwitch } from '@/components/forms/FormSwitch'
+import { FormField } from '@/components/forms/FormField'
+import { LabelsEditor } from '@/components/labels'
 import type { PulpRemote } from '@/types/pulp'
 
 const repositoryFormSchema = z.object({
@@ -13,6 +15,7 @@ const repositoryFormSchema = z.object({
   retain_repo_versions: z.number().int().min(1, 'Must be at least 1').max(1000, 'Must be 1000 or less').nullable().optional(),
   autopublish: z.boolean().optional(),
   remote: z.string().nullable().optional(),
+  pulp_labels: z.record(z.string(), z.string()).optional(),
 })
 
 export type RepositoryFormData = z.infer<typeof repositoryFormSchema>
@@ -32,6 +35,7 @@ export function useRepositoryForm(defaultValues?: Partial<RepositoryFormData>) {
       retain_repo_versions: null,
       autopublish: false,
       remote: null,
+      pulp_labels: {},
       ...defaultValues,
     },
   })
@@ -89,6 +93,20 @@ export function RepositoryForm({ form, remotes, isLoadingRemotes }: RepositoryFo
         description="Automatically create publications when content is added"
         disabled={form.formState.isSubmitting}
       />
+
+      <FormField<RepositoryFormData>
+        name="pulp_labels"
+        label="Labels"
+        description="Key-value labels for organizing and filtering repositories"
+      >
+        {({ value, onChange }) => (
+          <LabelsEditor
+            value={(value as Record<string, string>) || {}}
+            onChange={onChange}
+            disabled={form.formState.isSubmitting}
+          />
+        )}
+      </FormField>
     </div>
   )
 }

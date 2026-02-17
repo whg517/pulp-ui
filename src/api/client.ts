@@ -325,4 +325,126 @@ export const pulpApi = {
 
   deleteArtifact: (href: string) =>
     apiRequest(href.replace(API_BASE_PATH, ''), { method: 'DELETE' }),
+
+  // Imports
+  getImports: (params?: Record<string, string | number | boolean | undefined>) =>
+    apiPaginatedRequest('/import/core/import/', { params }),
+
+  getImport: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+
+  createImport: (data: { path: string; create_repositories?: boolean; parallel?: boolean }) =>
+    apiRequest('/import/core/import/', { method: 'POST', body: JSON.stringify(data) }),
+
+  // Exports
+  getExports: (params?: Record<string, string | number | boolean | undefined>) =>
+    apiPaginatedRequest('/export/core/pulpexport/', { params }),
+
+  getExport: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+
+  createExport: (data: {
+    start_repository_version: string
+    end_repository_version?: string
+    chunk_size?: string
+  }) => apiRequest('/export/core/pulpexport/', { method: 'POST', body: JSON.stringify(data) }),
+
+  getExportFiles: (href: string) =>
+    apiRequest(`${href.replace(API_BASE_PATH, '')}export-files/`),
+
+  // Content Guards
+  getContentGuards: (params?: Record<string, string | number | boolean | undefined>) =>
+    apiPaginatedRequest('/contentguards/', { params }),
+
+  getContentGuard: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+
+  deleteContentGuard: (href: string) =>
+    apiRequest(href.replace(API_BASE_PATH, ''), { method: 'DELETE' }),
+
+  // Certificate Guards
+  getCertGuards: (params?: Record<string, string | number | boolean | undefined>) =>
+    apiPaginatedRequest('/contentguards/certguard/', { params }),
+
+  getCertGuard: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+
+  createCertGuard: (data: { name: string; ca_certificate: string; description?: string }) =>
+    apiRequest('/contentguards/certguard/', { method: 'POST', body: JSON.stringify(data) }),
+
+  updateCertGuard: (href: string, data: Partial<Record<string, unknown>>) =>
+    apiRequest(href.replace(API_BASE_PATH, ''), {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  // RBAC Guards
+  getRBACGuards: (params?: Record<string, string | number | boolean | undefined>) =>
+    apiPaginatedRequest('/contentguards/rbac/', { params }),
+
+  getRBACGuard: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+
+  createRBACGuard: (data: { name: string; description?: string }) =>
+    apiRequest('/contentguards/rbac/', { method: 'POST', body: JSON.stringify(data) }),
+
+  updateRBACGuard: (href: string, data: Partial<Record<string, unknown>>) =>
+    apiRequest(href.replace(API_BASE_PATH, ''), {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  // Schedules
+  getSchedules: (params?: Record<string, string | number | boolean | undefined>) =>
+    apiPaginatedRequest('/schedules/', { params }),
+
+  getSchedule: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+
+  createSchedule: (data: Partial<Record<string, unknown>>) =>
+    apiRequest('/schedules/', { method: 'POST', body: JSON.stringify(data) }),
+
+  updateSchedule: (href: string, data: Partial<Record<string, unknown>>) =>
+    apiRequest(href.replace(API_BASE_PATH, ''), {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  deleteSchedule: (href: string) =>
+    apiRequest(href.replace(API_BASE_PATH, ''), { method: 'DELETE' }),
+
+  // Roles
+  getRoles: (params?: Record<string, string | number | boolean | undefined>) =>
+    apiPaginatedRequest('/roles/', { params }),
+
+  getRole: (href: string) => apiRequest(href.replace(API_BASE_PATH, '')),
+
+  createRole: (data: { name: string; description?: string; permissions: string[] }) =>
+    apiRequest('/roles/', { method: 'POST', body: JSON.stringify(data) }),
+
+  updateRole: (href: string, data: Partial<Record<string, unknown>>) =>
+    apiRequest(href.replace(API_BASE_PATH, ''), {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+
+  deleteRole: (href: string) =>
+    apiRequest(href.replace(API_BASE_PATH, ''), { method: 'DELETE' }),
+
+  // Permissions
+  getPermissions: (params?: Record<string, string | number | boolean | undefined>) =>
+    apiPaginatedRequest('/permissions/', { params }),
+
+  // ACS (Alternate Content Sources)
+  getRpmACS: (params?: Record<string, string | number | boolean | undefined>) =>
+    apiPaginatedRequest('/rpm/acs/', { params }),
+
+  getFileACS: (params?: Record<string, string | number | boolean | undefined>) =>
+    apiPaginatedRequest('/file/acs/', { params }),
+
+  createACS: (type: 'rpm' | 'file', data: Record<string, unknown>) =>
+    apiRequest(type === 'rpm' ? '/rpm/acs/' : '/file/acs/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  deleteACS: (href: string) =>
+    apiRequest(href.replace(API_BASE_PATH, ''), { method: 'DELETE' }),
+
+  refreshACS: (href: string) =>
+    apiRequest(`${href.replace(API_BASE_PATH, '')}refresh/`, { method: 'POST' }),
 }

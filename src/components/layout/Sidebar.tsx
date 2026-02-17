@@ -14,6 +14,15 @@ import {
   Cpu,
   Users,
   UserCircle,
+  Layers,
+  Archive,
+  Download,
+  Shield,
+  Lock,
+  Clock,
+  Cloud,
+  FileKey,
+  PenTool,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -25,13 +34,23 @@ const navigation = [
   { name: 'Remotes', href: '/remotes', icon: Globe },
   { name: 'Distributions', href: '/distributions', icon: Server },
   { name: 'Tasks', href: '/tasks', icon: ListTodo },
+  { name: 'Schedules', href: '/schedules', icon: Clock },
   { name: 'Content', href: '/content', icon: FileBox },
+  { name: 'Artifacts', href: '/artifacts', icon: Archive },
   { name: 'Publications', href: '/publications', icon: BookOpen },
   { name: 'Uploads', href: '/uploads', icon: Upload },
+  { name: 'Imports', href: '/imports', icon: Download },
+  { name: 'Exports', href: '/exports', icon: Upload },
   { name: 'Orphans', href: '/orphans', icon: Trash2 },
   { name: 'Workers', href: '/workers', icon: Cpu },
   { name: 'Users', href: '/users', icon: UserCircle },
   { name: 'Groups', href: '/groups', icon: Users },
+  { name: 'Roles', href: '/roles', icon: Lock },
+  { name: 'Access Policies', href: '/access-policies', icon: Shield },
+  { name: 'Domains', href: '/domains', icon: Layers },
+  { name: 'Content Guards', href: '/content-guards', icon: FileKey },
+  { name: 'ACS', href: '/acs', icon: Cloud },
+  { name: 'Signing Services', href: '/signing-services', icon: PenTool },
 ]
 
 export function Sidebar() {

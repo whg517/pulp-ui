@@ -13,6 +13,7 @@ export const remoteSchema = z.object({
   max_retries: z.number().int().min(0).optional(),
   total_timeout: z.number().positive().optional(),
   connect_timeout: z.number().positive().optional(),
+  pulp_labels: z.record(z.string(), z.string()).optional(),
 })
 
 export type RemoteFormData = z.infer<typeof remoteSchema>
@@ -30,9 +31,11 @@ export const defaultRemoteValues: RemoteFormData = {
   max_retries: undefined,
   total_timeout: undefined,
   connect_timeout: undefined,
+  pulp_labels: {},
 }
 
-import { FormInput, FormSelect, FormTextarea, FormSwitch } from '@/components/forms'
+import { FormInput, FormSelect, FormTextarea, FormSwitch, FormField } from '@/components/forms'
+import { LabelsEditor } from '@/components/labels'
 
 interface RemoteFormFieldsProps {
   isSubmitting?: boolean
@@ -147,6 +150,23 @@ export function RemoteFormFields({ isSubmitting }: RemoteFormFieldsProps) {
             disabled={isSubmitting}
           />
         </div>
+      </div>
+
+      <div className="space-y-4 border-t pt-4">
+        <h3 className="text-sm font-medium text-muted-foreground">Labels</h3>
+        <FormField<RemoteFormData>
+          name="pulp_labels"
+          label="Labels"
+          description="Key-value labels for organizing and filtering remotes"
+        >
+          {({ value, onChange }) => (
+            <LabelsEditor
+              value={(value as Record<string, string>) || {}}
+              onChange={onChange}
+              disabled={isSubmitting}
+            />
+          )}
+        </FormField>
       </div>
     </div>
   )

@@ -9,6 +9,7 @@ export const distributionSchema = z.object({
   repository: z.string().optional(),
   repository_version: z.string().optional(),
   content_guard: z.string().optional(),
+  pulp_labels: z.record(z.string(), z.string()).optional(),
 })
 
 export type DistributionFormData = z.infer<typeof distributionSchema>
@@ -19,9 +20,11 @@ export const defaultDistributionValues: DistributionFormData = {
   repository: undefined,
   repository_version: undefined,
   content_guard: undefined,
+  pulp_labels: {},
 }
 
-import { FormInput, FormSelect } from '@/components/forms'
+import { FormInput, FormSelect, FormField } from '@/components/forms'
+import { LabelsEditor } from '@/components/labels'
 import { useRepositories } from '@/hooks/useApi'
 
 interface DistributionFormFieldsProps {
@@ -80,6 +83,20 @@ export function DistributionFormFields({ isSubmitting }: DistributionFormFieldsP
         description="Access control for this distribution"
         disabled={isSubmitting}
       />
+
+      <FormField<DistributionFormData>
+        name="pulp_labels"
+        label="Labels"
+        description="Key-value labels for organizing and filtering distributions"
+      >
+        {({ value, onChange }) => (
+          <LabelsEditor
+            value={(value as Record<string, string>) || {}}
+            onChange={onChange}
+            disabled={isSubmitting}
+          />
+        )}
+      </FormField>
     </div>
   )
 }

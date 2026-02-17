@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { pulpApi, PulpApiError } from '@/api/client'
-import type { PulpRepository, PulpRemote, PulpDistribution, PulpTask, PulpStatus, PulpPagination, PulpContent, PulpPublication, PulpRepositoryVersion, PulpUpload, PulpUser, PulpGroup, PulpWorker, PulpOrphan, PulpSigningService, PulpAccessPolicy, PulpDomain, PulpArtifact } from '@/types/pulp'
+import type { PulpRepository, PulpRemote, PulpDistribution, PulpTask, PulpStatus, PulpPagination, PulpContent, PulpPublication, PulpRepositoryVersion, PulpUpload, PulpUser, PulpGroup, PulpWorker, PulpOrphan, PulpSigningService, PulpAccessPolicy, PulpDomain, PulpArtifact, PulpImport, PulpExport, PulpContentGuard, PulpCertGuard, PulpRBACGuard, PulpSchedule, PulpACS } from '@/types/pulp'
+import type { PulpRole, PulpPermission } from '@/types/rbac'
 
 type QueryParams = Record<string, string | number | boolean | undefined>
 
@@ -37,6 +38,18 @@ export const queryKeys = {
   domain: (href: string) => ['domain', href] as const,
   artifacts: (params?: QueryParams) => ['artifacts', params] as const,
   artifact: (href: string) => ['artifact', href] as const,
+  imports: (params?: QueryParams) => ['imports', params] as const,
+  import: (href: string) => ['import', href] as const,
+  exports: (params?: QueryParams) => ['exports', params] as const,
+  export: (href: string) => ['export', href] as const,
+  contentGuards: (params?: QueryParams) => ['contentGuards', params] as const,
+  contentGuard: (href: string) => ['contentGuard', href] as const,
+  certGuards: (params?: QueryParams) => ['certGuards', params] as const,
+  certGuard: (href: string) => ['certGuard', href] as const,
+  rbacGuards: (params?: QueryParams) => ['rbacGuards', params] as const,
+  rbacGuard: (href: string) => ['rbacGuard', href] as const,
+  schedules: (params?: QueryParams) => ['schedules', params] as const,
+  schedule: (href: string) => ['schedule', href] as const,
 }
 
 // Status hooks
@@ -609,6 +622,350 @@ export function useDeleteArtifact() {
     mutationFn: (href: string) => pulpApi.deleteArtifact(href),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['artifacts'] })
+    },
+  })
+}
+
+// Import hooks
+export function useImports(params?: QueryParams) {
+  return useQuery({
+    queryKey: queryKeys.imports(params),
+    queryFn: () => pulpApi.getImports(params) as Promise<PulpPagination<PulpImport>>,
+  })
+}
+
+export function useImport(href: string) {
+  return useQuery({
+    queryKey: queryKeys.import(href),
+    queryFn: () => pulpApi.getImport(href) as Promise<PulpImport>,
+    enabled: !!href,
+  })
+}
+
+export function useCreateImport() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { path: string; create_repositories?: boolean; parallel?: boolean }) =>
+      pulpApi.createImport(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['imports'] })
+    },
+  })
+}
+
+// Export hooks
+export function useExports(params?: QueryParams) {
+  return useQuery({
+    queryKey: queryKeys.exports(params),
+    queryFn: () => pulpApi.getExports(params) as Promise<PulpPagination<PulpExport>>,
+  })
+}
+
+export function useExport(href: string) {
+  return useQuery({
+    queryKey: queryKeys.export(href),
+    queryFn: () => pulpApi.getExport(href) as Promise<PulpExport>,
+    enabled: !!href,
+  })
+}
+
+export function useCreateExport() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: {
+      start_repository_version: string
+      end_repository_version?: string
+      chunk_size?: string
+    }) => pulpApi.createExport(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['exports'] })
+    },
+  })
+}
+
+export function useExportFiles(href: string) {
+  return useQuery({
+    queryKey: ['exportFiles', href] as const,
+    queryFn: () => pulpApi.getExportFiles(href),
+    enabled: !!href,
+  })
+}
+
+// Schedule hooks
+export function useSchedules(params?: QueryParams) {
+  return useQuery({
+    queryKey: queryKeys.schedules(params),
+    queryFn: () => pulpApi.getSchedules(params) as Promise<PulpPagination<PulpSchedule>>,
+  })
+}
+
+export function useSchedule(href: string) {
+  return useQuery({
+    queryKey: queryKeys.schedule(href),
+    queryFn: () => pulpApi.getSchedule(href) as Promise<PulpSchedule>,
+    enabled: !!href,
+  })
+}
+
+export function useCreateSchedule() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: Partial<Record<string, unknown>>) => pulpApi.createSchedule(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['schedules'] })
+    },
+  })
+}
+
+export function useUpdateSchedule() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ href, data }: { href: string; data: Partial<Record<string, unknown>> }) =>
+      pulpApi.updateSchedule(href, data),
+    onSuccess: (_, { href }) => {
+      queryClient.invalidateQueries({ queryKey: ['schedules'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.schedule(href) })
+    },
+  })
+}
+
+export function useDeleteSchedule() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (href: string) => pulpApi.deleteSchedule(href),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['schedules'] })
+    },
+  })
+}
+
+// Content Guard hooks
+export function useContentGuards(params?: QueryParams) {
+  return useQuery({
+    queryKey: queryKeys.contentGuards(params),
+    queryFn: () => pulpApi.getContentGuards(params) as Promise<PulpPagination<PulpContentGuard>>,
+  })
+}
+
+export function useContentGuard(href: string) {
+  return useQuery({
+    queryKey: queryKeys.contentGuard(href),
+    queryFn: () => pulpApi.getContentGuard(href) as Promise<PulpContentGuard>,
+    enabled: !!href,
+  })
+}
+
+export function useDeleteContentGuard() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (href: string) => pulpApi.deleteContentGuard(href),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contentGuards'] })
+      queryClient.invalidateQueries({ queryKey: ['certGuards'] })
+      queryClient.invalidateQueries({ queryKey: ['rbacGuards'] })
+    },
+  })
+}
+
+// CertGuard hooks
+export function useCertGuards(params?: QueryParams) {
+  return useQuery({
+    queryKey: queryKeys.certGuards(params),
+    queryFn: () => pulpApi.getCertGuards(params) as Promise<PulpPagination<PulpCertGuard>>,
+  })
+}
+
+export function useCertGuard(href: string) {
+  return useQuery({
+    queryKey: queryKeys.certGuard(href),
+    queryFn: () => pulpApi.getCertGuard(href) as Promise<PulpCertGuard>,
+    enabled: !!href,
+  })
+}
+
+export function useCreateCertGuard() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { name: string; ca_certificate: string; description?: string }) =>
+      pulpApi.createCertGuard(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contentGuards'] })
+      queryClient.invalidateQueries({ queryKey: ['certGuards'] })
+    },
+  })
+}
+
+export function useUpdateCertGuard() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ href, data }: { href: string; data: Partial<Record<string, unknown>> }) =>
+      pulpApi.updateCertGuard(href, data),
+    onSuccess: (_, { href }) => {
+      queryClient.invalidateQueries({ queryKey: ['contentGuards'] })
+      queryClient.invalidateQueries({ queryKey: ['certGuards'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.certGuard(href) })
+    },
+  })
+}
+
+// RBACGuard hooks
+export function useRBACGuards(params?: QueryParams) {
+  return useQuery({
+    queryKey: queryKeys.rbacGuards(params),
+    queryFn: () => pulpApi.getRBACGuards(params) as Promise<PulpPagination<PulpRBACGuard>>,
+  })
+}
+
+export function useRBACGuard(href: string) {
+  return useQuery({
+    queryKey: queryKeys.rbacGuard(href),
+    queryFn: () => pulpApi.getRBACGuard(href) as Promise<PulpRBACGuard>,
+    enabled: !!href,
+  })
+}
+
+export function useCreateRBACGuard() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { name: string; description?: string }) =>
+      pulpApi.createRBACGuard(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['contentGuards'] })
+      queryClient.invalidateQueries({ queryKey: ['rbacGuards'] })
+    },
+  })
+}
+
+export function useUpdateRBACGuard() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ href, data }: { href: string; data: Partial<Record<string, unknown>> }) =>
+      pulpApi.updateRBACGuard(href, data),
+    onSuccess: (_, { href }) => {
+      queryClient.invalidateQueries({ queryKey: ['contentGuards'] })
+      queryClient.invalidateQueries({ queryKey: ['rbacGuards'] })
+      queryClient.invalidateQueries({ queryKey: queryKeys.rbacGuard(href) })
+    },
+  })
+}
+
+// Role hooks
+export function useRoles(params?: QueryParams) {
+  return useQuery({
+    queryKey: ['roles', params] as const,
+    queryFn: () => pulpApi.getRoles(params) as Promise<PulpPagination<PulpRole>>,
+  })
+}
+
+export function useRole(href: string) {
+  return useQuery({
+    queryKey: ['role', href] as const,
+    queryFn: () => pulpApi.getRole(href) as Promise<PulpRole>,
+    enabled: !!href,
+  })
+}
+
+export function useCreateRole() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { name: string; description?: string; permissions: string[] }) =>
+      pulpApi.createRole(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['roles'] })
+    },
+  })
+}
+
+export function useUpdateRole() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ href, data }: { href: string; data: Partial<Record<string, unknown>> }) =>
+      pulpApi.updateRole(href, data),
+    onSuccess: (_, { href }) => {
+      queryClient.invalidateQueries({ queryKey: ['roles'] })
+      queryClient.invalidateQueries({ queryKey: ['role', href] })
+    },
+  })
+}
+
+export function useDeleteRole() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (href: string) => pulpApi.deleteRole(href),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['roles'] })
+    },
+  })
+}
+
+// Permission hooks
+export function usePermissions(params?: QueryParams) {
+  return useQuery({
+    queryKey: ['permissions', params] as const,
+    queryFn: () => pulpApi.getPermissions(params) as Promise<PulpPagination<PulpPermission>>,
+  })
+}
+
+// ACS hooks
+export function useACS() {
+  return useQuery({
+    queryKey: ['acs'] as const,
+    queryFn: async () => {
+      const results: (PulpACS & { type: 'rpm' | 'file' })[] = []
+
+      // Try RPM ACS
+      try {
+        const rpmData = await pulpApi.getRpmACS() as PulpPagination<PulpACS>
+        if (rpmData.results) {
+          results.push(...rpmData.results.map(acs => ({ ...acs, type: 'rpm' as const })))
+        }
+      } catch {
+        // RPM plugin may not be installed
+      }
+
+      // Try File ACS
+      try {
+        const fileData = await pulpApi.getFileACS() as PulpPagination<PulpACS>
+        if (fileData.results) {
+          results.push(...fileData.results.map(acs => ({ ...acs, type: 'file' as const })))
+        }
+      } catch {
+        // File plugin may not be installed
+      }
+
+      return results
+    },
+  })
+}
+
+export function useCreateACS() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ type, data }: { type: 'rpm' | 'file'; data: Record<string, unknown> }) =>
+      pulpApi.createACS(type, data) as Promise<PulpACS>,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['acs'] })
+    },
+  })
+}
+
+export function useDeleteACS() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (href: string) => pulpApi.deleteACS(href),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['acs'] })
+    },
+  })
+}
+
+export function useRefreshACS() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (href: string) => pulpApi.refreshACS(href) as Promise<{ task: string }>,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['acs'] })
+      queryClient.invalidateQueries({ queryKey: ['tasks'] })
     },
   })
 }

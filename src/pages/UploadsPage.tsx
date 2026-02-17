@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { RefreshCw, Trash2, Check, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { RefreshCw, Trash2, Check, X, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import {
@@ -67,6 +68,12 @@ export function UploadsPage() {
           <h1 className="text-3xl font-bold">Uploads</h1>
           <p className="text-muted-foreground">Manage chunked uploads</p>
         </div>
+        <Button asChild>
+          <Link to="/uploads/new">
+            <Upload className="h-4 w-4 mr-2" />
+            Upload File
+          </Link>
+        </Button>
       </div>
 
       <Card>
