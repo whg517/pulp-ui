@@ -8,8 +8,12 @@ import { getBasicAuthHeader, TEST_CREDENTIALS } from './helpers/auth.js'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-// Use internal API port 24817 (nginx on 8080 may not be ready)
-const PULP_API_URL = 'http://localhost:24817/pulp/api/v3/status/'
+// Containerized mode: Run tests against containerized services
+const isContainerized = process.env.E2E_CONTAINERIZED === 'true'
+
+// Use containerized Pulp hostname or localhost
+const PULP_HOST = isContainerized ? 'pulp' : 'localhost'
+const PULP_API_URL = `http://${PULP_HOST}:24817/pulp/api/v3/status/`
 const STORAGE_STATE_PATH = path.join(__dirname, '..', '.auth', 'admin.json')
 const DOCKER_COMPOSE_FILE = 'docker/docker-compose.e2e.yml'
 const HEALTH_CHECK_TIMEOUT_MS = 120_000
@@ -72,10 +76,18 @@ async function waitForPulpHealth(): Promise<void> {
 
 /**
  * Create the admin user in Pulp if it doesn't exist
+ * In containerized mode, the pulp-init sidecar container handles this
+ * In local mode, we use docker exec to create the user
  * The PULP_ADMIN_PASSWORD environment variable doesn't automatically create the user
- * in the ghcr.io/pulp/pulp image, so we need to create it manually
+ * in the pulp/pulp image, so we need to create it manually
  */
 function ensureAdminUser(): void {
+  // In containerized mode, the pulp-init sidecar handles user creation
+  if (isContainerized) {
+    console.log('Containerized mode - admin user should be created by pulp-init sidecar')
+    return
+  }
+
   console.log('Ensuring admin user exists...')
   try {
     // Check if admin user exists and create if not
@@ -119,7 +131,7 @@ async function authenticateAndSaveState(): Promise<string> {
 
   while (Date.now() - startTime < AUTH_RETRY_TIMEOUT_MS) {
     const context = await request.newContext({
-      baseURL: 'http://localhost:24817',
+      baseURL: `http://${PULP_HOST}:24817`,
     })
 
     try {
@@ -150,11 +162,13 @@ async function authenticateAndSaveState(): Promise<string> {
         const state = await context.storageState()
 
         // Create storage state with localStorage entries for frontend auth
+        // Use correct origin based on environment (containerized vs local)
+        const uiOrigin = isContainerized ? 'http://ui:5173' : 'http://localhost:5174'
         const storageState = {
           cookies: state.cookies,
           origins: [
             {
-              origin: 'http://localhost:5173',
+              origin: uiOrigin,
               localStorage: [
                 {
                   name: 'pulp_auth',

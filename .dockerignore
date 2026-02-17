@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Development files
+.git/
+.gitignore
+.github/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Test and coverage
+coverage/
+.auth/
+playwright-report/
+test-results/
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# OMC state files
+.omc/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Docker files (don't copy into image)
+docker/
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Misc
+.DS_Store
+*.log
+npm-debug.log*

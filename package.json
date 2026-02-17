@@ -19,7 +19,14 @@
     "test:e2e:real:debug": "playwright test --debug",
     "e2e:docker:up": "docker compose -f docker/docker-compose.e2e.yml up -d",
     "e2e:docker:down": "docker compose -f docker/docker-compose.e2e.yml down -v",
-    "e2e:docker:logs": "docker compose -f docker/docker-compose.e2e.yml logs -f pulp"
+    "e2e:docker:logs": "docker compose -f docker/docker-compose.e2e.yml logs -f pulp",
+    "e2e:docker:build": "docker compose -f docker/docker-compose.e2e.yml build ui",
+    "e2e:containerized": "E2E_CONTAINERIZED=true E2E_TEST=1 SKIP_DOCKER_SETUP=true playwright test",
+    "e2e:containerized:ui": "E2E_CONTAINERIZED=true E2E_TEST=1 SKIP_DOCKER_SETUP=true playwright test --ui",
+    "docker:build": "docker build -t pulp-ui:latest .",
+    "docker:prod:up": "docker compose -f docker/docker-compose.prod.yml up -d",
+    "docker:prod:down": "docker compose -f docker/docker-compose.prod.yml down",
+    "docker:prod:build": "docker compose -f docker/docker-compose.prod.yml build"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

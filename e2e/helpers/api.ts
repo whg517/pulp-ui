@@ -222,11 +222,16 @@ export class PulpAPIClient {
  * @returns Configured PulpAPIClient instance
  */
 export function createAPIClient(request: APIRequestContext): PulpAPIClient {
-  // In CI or E2E test environment, use port 24817 (internal API) directly
-  // as nginx on 8080 may not be properly configured or ready
-  // This matches the vite.config.ts proxy configuration for E2E tests
-  const baseURL = process.env.CI || process.env.E2E_TEST
-    ? 'http://localhost:24817/pulp/api/v3'
-    : 'http://localhost:8080/pulp/api/v3'
+  // Determine the Pulp API base URL based on environment
+  // Priority: PULP_API_URL env var > containerized mode > CI/E2E mode > development
+  const pulpHost = process.env.PULP_API_URL
+    ? process.env.PULP_API_URL.replace(/\/$/, '') // Remove trailing slash if present
+    : process.env.E2E_CONTAINERIZED === 'true'
+      ? 'http://pulp:24817'
+      : process.env.CI || process.env.E2E_TEST
+        ? 'http://localhost:24817'
+        : 'http://localhost:8080'
+
+  const baseURL = `${pulpHost}/pulp/api/v3`
   return new PulpAPIClient(request, baseURL)
 }

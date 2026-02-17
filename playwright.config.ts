@@ -1,6 +1,15 @@
 import { defineConfig, devices } from '@playwright/test'
 import { fileURLToPath } from 'url'
 
+// Containerized mode: Run tests against containerized UI service
+// Set E2E_CONTAINERIZED=true to enable
+const isContainerized = process.env.E2E_CONTAINERIZED === 'true'
+
+// Base URL: Use containerized UI service or local dev server
+const baseURL = isContainerized
+  ? (process.env.PLAYWRIGHT_BASE_URL || 'http://ui:5173')
+  : 'http://localhost:5174'
+
 export default defineConfig({
   testDir: './e2e',
   timeout: 30000,
@@ -13,7 +22,7 @@ export default defineConfig({
   globalSetup: fileURLToPath(new URL('./e2e/globalSetup.ts', import.meta.url)),
   globalTeardown: fileURLToPath(new URL('./e2e/globalTeardown.ts', import.meta.url)),
   use: {
-    baseURL: 'http://localhost:5174',
+    baseURL,
     // Note: storageState is NOT set globally to allow login tests to work
     // Tests that need authentication should use the authenticatedPage fixture
     trace: 'on-first-retry',
@@ -38,10 +47,16 @@ export default defineConfig({
           },
         ]),
   ],
-  webServer: {
-    command: 'E2E_TEST=1 bun dev',
-    url: 'http://localhost:5174',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120 * 1000,
-  },
+  // In containerized mode, the UI service is managed by docker-compose
+  // In local mode, start the dev server via webServer
+  ...(isContainerized
+    ? {}
+    : {
+        webServer: {
+          command: 'E2E_TEST=1 bun dev',
+          url: 'http://localhost:5174',
+          reuseExistingServer: !process.env.CI,
+          timeout: 120 * 1000,
+        },
+      }),
 })

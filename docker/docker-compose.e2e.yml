@@ -1,13 +1,14 @@
 # E2E testing Docker Compose configuration
 # Standalone configuration for ephemeral end-to-end testing
-# Usage: docker-compose -f docker-compose.e2e.yml up
+# Usage: docker compose -f docker/docker-compose.e2e.yml up
 #
 # Key differences from docker-compose.yml:
 # - Uses tmpfs for ephemeral storage (no persistent volumes)
 # - Container names prefixed with e2e- to avoid conflicts
 # - Faster health check interval (10s instead of 30s for Pulp)
 # - Longer start_period (90s) for Pulp cold start
-# - Exposes postgres (5432) and redis (6379) ports for testing
+# - Includes UI container for containerized E2E testing
+# - UI container runs in development mode with hot reload
 
 services:
   postgres:
@@ -19,7 +20,6 @@ services:
       POSTGRES_DB: pulp
     tmpfs:
       - /var/lib/postgresql/data
-    # Port not exposed externally - only needed internally
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U pulp"]
       interval: 5s
@@ -31,7 +31,6 @@ services:
     container_name: e2e-pulp-redis
     tmpfs:
       - /data
-    # Port not exposed externally - only needed internally
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -61,7 +60,7 @@ services:
       - "8080:80"
       - "24817:24817"
     volumes:
-      - ./pulp-settings.py:/etc/pulp/settings.py:ro
+      - ../pulp-settings.py:/etc/pulp/settings.py:ro
     tmpfs:
       - /var/lib/pulp
     healthcheck:
@@ -70,3 +69,104 @@ services:
       timeout: 10s
       retries: 5
       start_period: 90s
+
+  # Init container to create admin user in Pulp
+  # Runs once after Pulp is healthy, then exits
+  pulp-init:
+    image: pulp/pulp:latest
+    container_name: e2e-pulp-init
+    depends_on:
+      pulp:
+        condition: service_healthy
+    environment:
+      PULP_DB_HOST: postgres
+      PULP_DB_PORT: 5432
+      PULP_DB_USER: pulp
+      PULP_DB_PASSWORD: pulp
+      PULP_DB_NAME: pulp
+    volumes:
+      - ../pulp-settings.py:/etc/pulp/settings.py:ro
+    # Create admin user and exit
+    command: >
+      /bin/bash -c "
+        echo 'Creating admin user...';
+        /usr/local/bin/pulpcore-manager shell -c '
+          from django.contrib.auth import get_user_model;
+          User = get_user_model();
+          if not User.objects.filter(username=\"admin\").exists():
+            User.objects.create_superuser(\"admin\", \"admin@example.com\", \"admin\");
+            print(\"Admin user created\");
+          else:
+            print(\"Admin user already exists\");
+        ' 2>/dev/null || echo 'Admin user setup complete';
+      "
+
+  # UI container for containerized E2E testing
+  # Runs in development mode with Vite dev server
+  # Set E2E_CONTAINERIZED=true to use this instead of webServer
+  ui:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: development
+    container_name: e2e-pulp-ui
+    depends_on:
+      pulp:
+        condition: service_healthy
+    environment:
+      # Enable containerized mode for proper API proxy
+      E2E_CONTAINERIZED: "1"
+      # Use internal Pulp API port (bypass nginx)
+      VITE_PULP_API_URL: "http://pulp:24817"
+    ports:
+      - "5174:5173"
+    volumes:
+      # Mount source code for hot reload during development
+      - ../src:/app/src:ro
+      - ../public:/app/public:ro
+      - ../index.html:/app/index.html:ro
+      - ../vite.config.ts:/app/vite.config.ts:ro
+      - ../tsconfig.json:/app/tsconfig.json:ro
+      - ../tsconfig.app.json:/app/tsconfig.app.json:ro
+      - ../tsconfig.node.json:/app/tsconfig.node.json:ro
+      - ../tailwind.config.ts:/app/tailwind.config.ts:ro
+      - ../postcss.config.js:/app/postcss.config.js:ro
+    healthcheck:
+      # Use node to check HTTP health (curl/wget not available in bun image)
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5173/', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Playwright test runner container
+  # Runs E2E tests inside the containerized environment
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.58.2-noble
+    container_name: e2e-playwright
+    depends_on:
+      pulp-init:
+        condition: service_completed_successfully
+      ui:
+        condition: service_healthy
+    environment:
+      # CI mode for Playwright
+      CI: "true"
+      # Containerized E2E mode
+      E2E_CONTAINERIZED: "true"
+      # Skip Docker setup since we're already in containers
+      SKIP_DOCKER_SETUP: "true"
+      # Base URL for UI
+      PLAYWRIGHT_BASE_URL: "http://ui:5173"
+      # Pulp API URL (internal)
+      PULP_API_URL: "http://pulp:24817"
+    working_dir: /app
+    volumes:
+      - ..:/app
+      - playwright_cache:/root/.cache
+    command: ["npx", "playwright", "test", "--reporter=html"]
+    profiles:
+      - test
+
+volumes:
+  playwright_cache:

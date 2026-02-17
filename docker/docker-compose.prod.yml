@@ -1,0 +1,88 @@
+# Production Docker Compose configuration
+# Full stack deployment with Pulp backend and UI frontend
+# Usage: docker compose -f docker/docker-compose.prod.yml up -d
+
+services:
+  postgres:
+    image: docker.io/library/postgres:15
+    container_name: pulp-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pulp
+      POSTGRES_PASSWORD: ${PULP_DB_PASSWORD:-pulp}
+      POSTGRES_DB: pulp
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pulp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: docker.io/library/redis:7
+    container_name: pulp-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  pulp:
+    image: pulp/pulp:latest
+    container_name: pulp-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PULP_DB_HOST: postgres
+      PULP_DB_PORT: 5432
+      PULP_DB_USER: pulp
+      PULP_DB_PASSWORD: ${PULP_DB_PASSWORD:-pulp}
+      PULP_DB_NAME: pulp
+      PULP_REDIS_HOST: redis
+      PULP_REDIS_PORT: 6379
+      PULP_SECRET_KEY: ${PULP_SECRET_KEY:-change-this-secret-key}
+      PULP_ADMIN_PASSWORD: ${PULP_ADMIN_PASSWORD:-admin}
+      PULP_CONTENT_ORIGIN: ${PULP_CONTENT_ORIGIN:-http://localhost:8080}
+      DJANGO_SETTINGS_MODULE: pulpcore.app.settings
+    volumes:
+      - pulp_data:/var/lib/pulp
+      - ./pulp-settings.py:/etc/pulp/settings.py:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/pulp/api/v3/status/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Pulp UI Frontend
+  ui:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      target: production
+    container_name: pulp-ui
+    restart: unless-stopped
+    depends_on:
+      pulp:
+        condition: service_healthy
+    ports:
+      - "3000:80"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  postgres_data:
+  redis_data:
+  pulp_data:
