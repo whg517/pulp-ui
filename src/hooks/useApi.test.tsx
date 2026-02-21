@@ -25,7 +25,6 @@ import {
   useTasks,
   useTask,
   useCancelTask,
-  useContent,
   queryKeys,
   PulpApiError,
 } from './useApi'
@@ -645,35 +644,6 @@ describe('useApi hooks', () => {
 
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.task(href) })
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks'] })
-    })
-  })
-
-  describe('useContent', () => {
-    it('returns paginated content on successful fetch', async () => {
-      const { result } = renderHook(() => useContent(), {
-        wrapper: createWrapper(),
-      })
-
-      await waitFor(() => expect(result.current.isSuccess).toBe(true))
-
-      expect(result.current.data).toMatchObject({
-        count: 2,
-        results: expect.arrayContaining([
-          expect.objectContaining({ relative_path: 'file-1.txt' }),
-          expect.objectContaining({ relative_path: 'file-2.txt' }),
-        ]),
-      })
-    })
-
-    it('passes query params to filter content', async () => {
-      const { result } = renderHook(
-        () => useContent({ repository_version: '/pulp/api/v3/repositories/1/versions/1/' }),
-        { wrapper: createWrapper() }
-      )
-
-      await waitFor(() => expect(result.current.isSuccess).toBe(true))
-
-      expect(result.current.data).toBeDefined()
     })
   })
 

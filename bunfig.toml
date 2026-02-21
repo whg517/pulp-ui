@@ -1,0 +1,5 @@
+[test]
+preload = "./src/test/setup.ts"
+
+# Use tsconfig for path resolution
+typescript = true

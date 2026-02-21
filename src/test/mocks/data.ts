@@ -8,7 +8,6 @@ import type {
   PulpRemote,
   PulpDistribution,
   PulpTask,
-  PulpContent,
   PulpStatus,
   PulpCertGuard,
   PulpRBACGuard,
@@ -98,13 +97,6 @@ export const createMockTask = (id: number, state: PulpTask['state'] = 'completed
   progress_reports: [],
   created_resources: [],
   reserved_resources_record: [],
-})
-
-export const createMockContent = (id: number): PulpContent => ({
-  pulp_href: `${API_BASE}/content/${id}/`,
-  pulp_created: new Date().toISOString(),
-  artifact: null,
-  relative_path: `file-${id}.txt`,
 })
 
 export const mockStatus: PulpStatus = {

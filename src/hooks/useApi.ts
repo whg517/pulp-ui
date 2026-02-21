@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { pulpApi, PulpApiError } from '@/api/client'
-import type { PulpRepository, PulpRemote, PulpDistribution, PulpTask, PulpStatus, PulpPagination, PulpContent, PulpPublication, PulpRepositoryVersion, PulpUpload, PulpUser, PulpGroup, PulpWorker, PulpOrphan, PulpSigningService, PulpAccessPolicy, PulpDomain, PulpArtifact, PulpImport, PulpExport, PulpContentGuard, PulpCertGuard, PulpRBACGuard, PulpSchedule, PulpACS } from '@/types/pulp'
+import type { PulpRepository, PulpRemote, PulpDistribution, PulpTask, PulpStatus, PulpPagination, PulpPublication, PulpRepositoryVersion, PulpUpload, PulpUser, PulpGroup, PulpWorker, PulpOrphan, PulpSigningService, PulpAccessPolicy, PulpDomain, PulpArtifact, PulpImport, PulpExport, PulpContentGuard, PulpCertGuard, PulpRBACGuard, PulpSchedule, PulpACS } from '@/types/pulp'
 import type { PulpRole, PulpPermission } from '@/types/rbac'
 
 type QueryParams = Record<string, string | number | boolean | undefined>
@@ -16,7 +16,6 @@ export const queryKeys = {
   distribution: (href: string) => ['distribution', href] as const,
   tasks: (params?: QueryParams) => ['tasks', params] as const,
   task: (href: string) => ['task', href] as const,
-  content: (params?: QueryParams) => ['content', params] as const,
   publications: (params?: QueryParams) => ['publications', params] as const,
   publication: (href: string) => ['publication', href] as const,
   repositoryVersions: (repoHref: string, params?: QueryParams) => ['repositoryVersions', repoHref, params] as const,
@@ -247,14 +246,6 @@ export function useCancelTask() {
       queryClient.invalidateQueries({ queryKey: queryKeys.task(href) })
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
     },
-  })
-}
-
-// Content hooks
-export function useContent(params?: QueryParams) {
-  return useQuery({
-    queryKey: queryKeys.content(params),
-    queryFn: () => pulpApi.getContent(params) as Promise<PulpPagination<PulpContent>>,
   })
 }
 

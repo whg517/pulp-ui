@@ -10,7 +10,6 @@ import { DistributionsPage } from '@/pages/DistributionsPage'
 import { DistributionDetailPage } from '@/pages/DistributionDetailPage'
 import { TasksPage } from '@/pages/TasksPage'
 import { TaskDetailPage } from '@/pages/TaskDetailPage'
-import { ContentPage } from '@/pages/ContentPage'
 import { PublicationsPage } from '@/pages/PublicationsPage'
 import { PublicationDetailPage } from '@/pages/PublicationDetailPage'
 import { WorkersPage } from '@/pages/WorkersPage'
@@ -107,10 +106,6 @@ export const router = createBrowserRouter([
       {
         path: 'tasks/:href',
         element: <TaskDetailPage />,
-      },
-      {
-        path: 'content',
-        element: <ContentPage />,
       },
       {
         path: 'publications',

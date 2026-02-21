@@ -788,32 +788,6 @@ describe('pulpApi', () => {
       })
     })
   })
-
-  describe('Content operations', () => {
-    describe('getContent', () => {
-      it('returns paginated list of content', async () => {
-        const result = await pulpApi.getContent()
-
-        expect(result.count).toBeGreaterThanOrEqual(0)
-        expect(Array.isArray(result.results)).toBe(true)
-      })
-
-      it('accepts filter params', async () => {
-        let capturedUrl: string | null = null
-
-        server.use(
-          http.get('/pulp/api/v3/content/', ({ request }) => {
-            capturedUrl = request.url
-            return HttpResponse.json({ count: 0, next: null, previous: null, results: [] })
-          })
-        )
-
-        await pulpApi.getContent({ repository_version: '/versions/1/' })
-
-        expect(capturedUrl).toContain('repository_version=%2Fversions%2F1%2F')
-      })
-    })
-  })
 })
 
 describe('Edge cases', () => {

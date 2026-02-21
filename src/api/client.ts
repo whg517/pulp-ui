@@ -215,10 +215,6 @@ export const pulpApi = {
   cancelTask: (href: string) =>
     apiRequest(`${sanitizeHref(href)}cancel/`, { method: 'POST' }),
 
-  // Content
-  getContent: (params?: Record<string, string | number | boolean | undefined>) =>
-    apiPaginatedRequest('/content/', { params }),
-
   // Publications
   getPublications: (params?: Record<string, string | number | boolean | undefined>) =>
     apiPaginatedRequest('/publications/', { params }),

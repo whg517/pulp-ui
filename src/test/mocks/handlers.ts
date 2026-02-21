@@ -5,7 +5,6 @@ import {
   createMockRemote,
   createMockDistribution,
   createMockTask,
-  createMockContent,
   createMockCertGuard,
   createMockRBACGuard,
   createMockACS,
@@ -166,12 +165,6 @@ export const handlers = [
     await delay(100)
     const id = Number(params.id)
     return HttpResponse.json(createMockTask(id, 'canceled'))
-  }),
-
-  // Content
-  http.get(`${API_BASE}/content/`, () => {
-    const contents = [createMockContent(1), createMockContent(2)]
-    return HttpResponse.json(paginated(contents))
   }),
 
   // Content Guards - Certificate
