@@ -1,61 +1,59 @@
-import { Link, useLocation } from 'react-router-dom'
-import {
-  LayoutDashboard,
-  Package,
-  Globe,
-  Server,
-  ListTodo,
-  FileBox,
-  ChevronLeft,
-  ChevronRight,
-  BookOpen,
-  Upload,
-  Trash2,
-  Cpu,
-  Users,
-  UserCircle,
-  Layers,
-  Archive,
-  Download,
-  Shield,
-  Lock,
-  Clock,
-  Cloud,
-  FileKey,
-  PenTool,
-} from 'lucide-react'
+import { useLocation } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
-import { useState } from 'react'
-
-const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Repositories', href: '/repositories', icon: Package },
-  { name: 'Remotes', href: '/remotes', icon: Globe },
-  { name: 'Distributions', href: '/distributions', icon: Server },
-  { name: 'Tasks', href: '/tasks', icon: ListTodo },
-  { name: 'Schedules', href: '/schedules', icon: Clock },
-  { name: 'Content', href: '/content', icon: FileBox },
-  { name: 'Artifacts', href: '/artifacts', icon: Archive },
-  { name: 'Publications', href: '/publications', icon: BookOpen },
-  { name: 'Uploads', href: '/uploads', icon: Upload },
-  { name: 'Imports', href: '/imports', icon: Download },
-  { name: 'Exports', href: '/exports', icon: Upload },
-  { name: 'Orphans', href: '/orphans', icon: Trash2 },
-  { name: 'Workers', href: '/workers', icon: Cpu },
-  { name: 'Users', href: '/users', icon: UserCircle },
-  { name: 'Groups', href: '/groups', icon: Users },
-  { name: 'Roles', href: '/roles', icon: Lock },
-  { name: 'Access Policies', href: '/access-policies', icon: Shield },
-  { name: 'Domains', href: '/domains', icon: Layers },
-  { name: 'Content Guards', href: '/content-guards', icon: FileKey },
-  { name: 'ACS', href: '/acs', icon: Cloud },
-  { name: 'Signing Services', href: '/signing-services', icon: PenTool },
-]
+import {
+  SidebarHeader,
+  SidebarItem,
+  SidebarGroup,
+  navigationConfig,
+  isGroupActive,
+} from './sidebar-nav'
+import type { MenuGroup } from './sidebar-nav'
 
 export function Sidebar() {
   const location = useLocation()
   const [collapsed, setCollapsed] = useState(false)
+
+  // Track expanded groups - stored as Set of group names
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
+    // Initialize with groups that contain the active route
+    const initialExpanded = new Set<string>()
+    navigationConfig.forEach((item) => {
+      if (item.type === 'group' && isGroupActive(location.pathname, item.children)) {
+        initialExpanded.add(item.name)
+      }
+    })
+    return initialExpanded
+  })
+
+  // Auto-expand groups when navigating to a child route
+  useEffect(() => {
+    navigationConfig.forEach((item) => {
+      if (item.type === 'group' && isGroupActive(location.pathname, item.children)) {
+        setExpandedGroups((prev) => {
+          const next = new Set(prev)
+          next.add(item.name)
+          return next
+        })
+      }
+    })
+  }, [location.pathname])
+
+  const toggleGroup = (groupName: string) => {
+    setExpandedGroups((prev) => {
+      const next = new Set(prev)
+      if (next.has(groupName)) {
+        next.delete(groupName)
+      } else {
+        next.add(groupName)
+      }
+      return next
+    })
+  }
+
+  const handleExpandSidebar = () => {
+    setCollapsed(false)
+  }
 
   return (
     <aside
@@ -64,45 +62,36 @@ export function Sidebar() {
         collapsed ? 'w-16' : 'w-64'
       )}
     >
-      <div className="flex h-16 items-center justify-between border-b px-4">
-        {!collapsed && (
-          <Link to="/" className="flex items-center gap-2">
-            <Package className="h-6 w-6 text-primary" />
-            <span className="font-semibold text-lg">Pulp UI</span>
-          </Link>
-        )}
-        {collapsed && <Package className="h-6 w-6 text-primary mx-auto" />}
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn('h-8 w-8', collapsed && 'mx-auto mt-2')}
-          onClick={() => setCollapsed(!collapsed)}
-        >
-          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </Button>
-      </div>
+      <SidebarHeader collapsed={collapsed} onToggleCollapse={() => setCollapsed(!collapsed)} />
 
       <nav className="flex-1 overflow-y-auto space-y-1 p-2">
-        {navigation.map((item) => {
-          const isActive = location.pathname === item.href ||
-            (item.href !== '/' && location.pathname.startsWith(item.href + '/'))
-          return (
-            <Link
-              key={item.name}
-              to={item.href}
-              className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-                collapsed && 'justify-center px-2'
-              )}
-              title={collapsed ? item.name : undefined}
-            >
-              <item.icon className="h-5 w-5 shrink-0" />
-              {!collapsed && <span>{item.name}</span>}
-            </Link>
-          )
+        {navigationConfig.map((item) => {
+          if (item.type === 'item') {
+            return (
+              <SidebarItem
+                key={item.href}
+                item={item}
+                collapsed={collapsed}
+                currentPath={location.pathname}
+              />
+            )
+          }
+
+          if (item.type === 'group') {
+            return (
+              <SidebarGroup
+                key={item.name}
+                group={item as MenuGroup}
+                collapsed={collapsed}
+                currentPath={location.pathname}
+                isExpanded={expandedGroups.has(item.name)}
+                onToggle={() => toggleGroup(item.name)}
+                onExpandSidebar={handleExpandSidebar}
+              />
+            )
+          }
+
+          return null
         })}
       </nav>
 
