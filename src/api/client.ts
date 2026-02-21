@@ -315,9 +315,10 @@ export const pulpApi = {
 
   getWorker: (href: string) => apiRequest(sanitizeHref(href)),
 
-  // Orphans
-  getOrphans: (params?: Record<string, string | number | boolean | undefined>) =>
-    apiPaginatedRequest('/orphans/', { params }),
+  // Orphans - no GET endpoint, only cleanup via POST
+  getOrphans: (_params?: Record<string, string | number | boolean | undefined>) =>
+    // Orphans API doesn't support GET listing, return empty result
+    Promise.resolve({ count: 0, next: null, previous: null, results: [] }),
 
   deleteOrphans: (params?: Record<string, string | number | boolean | undefined>) =>
     apiRequest('/orphans/cleanup/', { method: 'POST', body: JSON.stringify(params || {}) }),
@@ -369,16 +370,16 @@ export const pulpApi = {
 
   // Imports
   getImports: (params?: Record<string, string | number | boolean | undefined>) =>
-    apiPaginatedRequest('/import/core/import/', { params }),
+    apiPaginatedRequest('/importers/core/pulp/imports/', { params }),
 
   getImport: (href: string) => apiRequest(sanitizeHref(href)),
 
   createImport: (data: { path: string; create_repositories?: boolean; parallel?: boolean }) =>
-    apiRequest('/import/core/import/', { method: 'POST', body: JSON.stringify(data) }),
+    apiRequest('/importers/core/pulp/imports/', { method: 'POST', body: JSON.stringify(data) }),
 
   // Exports
   getExports: (params?: Record<string, string | number | boolean | undefined>) =>
-    apiPaginatedRequest('/export/core/pulpexport/', { params }),
+    apiPaginatedRequest('/exporters/core/pulp/exports/', { params }),
 
   getExport: (href: string) => apiRequest(sanitizeHref(href)),
 
@@ -386,7 +387,7 @@ export const pulpApi = {
     start_repository_version: string
     end_repository_version?: string
     chunk_size?: string
-  }) => apiRequest('/export/core/pulpexport/', { method: 'POST', body: JSON.stringify(data) }),
+  }) => apiRequest('/exporters/core/pulp/exports/', { method: 'POST', body: JSON.stringify(data) }),
 
   getExportFiles: (href: string) =>
     apiRequest(`${sanitizeHref(href)}export-files/`),
@@ -402,12 +403,12 @@ export const pulpApi = {
 
   // Certificate Guards
   getCertGuards: (params?: Record<string, string | number | boolean | undefined>) =>
-    apiPaginatedRequest('/contentguards/certguard/', { params }),
+    apiPaginatedRequest('/contentguards/certguard/x509/', { params }),
 
   getCertGuard: (href: string) => apiRequest(sanitizeHref(href)),
 
   createCertGuard: (data: { name: string; ca_certificate: string; description?: string }) =>
-    apiRequest('/contentguards/certguard/', { method: 'POST', body: JSON.stringify(data) }),
+    apiRequest('/contentguards/certguard/x509/', { method: 'POST', body: JSON.stringify(data) }),
 
   updateCertGuard: (href: string, data: Partial<Record<string, unknown>>) =>
     apiRequest(sanitizeHref(href), {
@@ -417,12 +418,12 @@ export const pulpApi = {
 
   // RBAC Guards
   getRBACGuards: (params?: Record<string, string | number | boolean | undefined>) =>
-    apiPaginatedRequest('/contentguards/rbac/', { params }),
+    apiPaginatedRequest('/contentguards/core/rbac/', { params }),
 
   getRBACGuard: (href: string) => apiRequest(sanitizeHref(href)),
 
   createRBACGuard: (data: { name: string; description?: string }) =>
-    apiRequest('/contentguards/rbac/', { method: 'POST', body: JSON.stringify(data) }),
+    apiRequest('/contentguards/core/rbac/', { method: 'POST', body: JSON.stringify(data) }),
 
   updateRBACGuard: (href: string, data: Partial<Record<string, unknown>>) =>
     apiRequest(sanitizeHref(href), {
@@ -430,14 +431,14 @@ export const pulpApi = {
       body: JSON.stringify(data),
     }),
 
-  // Schedules
+  // Schedules - list all scheduled tasks
   getSchedules: (params?: Record<string, string | number | boolean | undefined>) =>
-    apiPaginatedRequest('/schedules/', { params }),
+    apiPaginatedRequest('/tasks/schedules/', { params }),
 
   getSchedule: (href: string) => apiRequest(sanitizeHref(href)),
 
   createSchedule: (data: Partial<Record<string, unknown>>) =>
-    apiRequest('/schedules/', { method: 'POST', body: JSON.stringify(data) }),
+    apiRequest('/tasks/schedules/', { method: 'POST', body: JSON.stringify(data) }),
 
   updateSchedule: (href: string, data: Partial<Record<string, unknown>>) =>
     apiRequest(sanitizeHref(href), {
@@ -466,19 +467,25 @@ export const pulpApi = {
   deleteRole: (href: string) =>
     apiRequest(sanitizeHref(href), { method: 'DELETE' }),
 
-  // Permissions
-  getPermissions: (params?: Record<string, string | number | boolean | undefined>) =>
-    apiPaginatedRequest('/permissions/', { params }),
+  // Permissions - no direct API endpoint, permissions are managed via roles
+  getPermissions: (_params?: Record<string, string | number | boolean | undefined>) =>
+    // Return empty result as there's no direct permissions listing endpoint
+    Promise.resolve({ count: 0, next: null, previous: null, results: [] }),
 
-  // ACS (Alternate Content Sources)
+  // ACS (Alternate Content Sources) - requires rpm/file plugins
+  // These endpoints may return 404 if plugins are not installed
   getRpmACS: (params?: Record<string, string | number | boolean | undefined>) =>
-    apiPaginatedRequest('/rpm/acs/', { params }),
+    apiPaginatedRequest('/acs/rpm/rpm/', { params }).catch(() =>
+      ({ count: 0, next: null, previous: null, results: [] })
+    ),
 
   getFileACS: (params?: Record<string, string | number | boolean | undefined>) =>
-    apiPaginatedRequest('/file/acs/', { params }),
+    apiPaginatedRequest('/acs/file/file/', { params }).catch(() =>
+      ({ count: 0, next: null, previous: null, results: [] })
+    ),
 
   createACS: (type: 'rpm' | 'file', data: Record<string, unknown>) =>
-    apiRequest(type === 'rpm' ? '/rpm/acs/' : '/file/acs/', {
+    apiRequest(type === 'rpm' ? '/acs/rpm/rpm/' : '/acs/file/file/', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
