@@ -70,8 +70,7 @@ test.describe('Login Flow', () => {
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
   })
 
-  // Skip: Frontend bug - login uses /status/ endpoint which is public and doesn't validate credentials
-  test.skip('shows error message for invalid credentials', async ({ freshPage }) => {
+  test('shows error message for invalid credentials', async ({ freshPage }) => {
     const page = freshPage
     // Use wrong password to test real API 401 response
     await page.getByLabel('Username').fill('admin')

@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useAuthStore } from '@/stores/authStore'
-import { pulpApi, PulpApiError } from '@/api/client'
+import { PulpApiError } from '@/api/client'
 
 const loginSchema = z.object({
   username: z.string().min(1, 'Username is required'),
@@ -38,17 +38,10 @@ export function LoginPage() {
     setIsLoading(true)
 
     try {
-      // Store credentials first
-      login(data.username, data.password)
-
-      // Verify credentials work by calling the status endpoint
-      await pulpApi.getStatus()
-
+      // Login validates credentials against Pulp API before storing
+      await login(data.username, data.password)
       navigate('/')
     } catch (err) {
-      // Clear credentials on authentication failure
-      useAuthStore.getState().logout()
-
       if (err instanceof PulpApiError) {
         setError(err.data.detail || 'Authentication failed. Please check your credentials.')
       } else {

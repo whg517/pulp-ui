@@ -1,10 +1,11 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { pulpApi } from '@/api/client'
 
 interface AuthState {
   isAuthenticated: boolean
   username: string | null
-  login: (username: string, password: string) => boolean
+  login: (username: string, password: string) => Promise<boolean>
   logout: () => void
   checkAuth: () => boolean
 }
@@ -15,7 +16,10 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       username: null,
 
-      login: (username: string, password: string) => {
+      login: async (username: string, password: string) => {
+        // Validate credentials against Pulp API before storing
+        await pulpApi.authenticate(username, password)
+
         // Store credentials in localStorage for API calls
         const encoded = btoa(`${username}:${password}`)
         localStorage.setItem('pulp_auth', encoded)

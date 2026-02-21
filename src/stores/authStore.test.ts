@@ -1,5 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { useAuthStore } from './authStore'
+import { pulpApi } from '@/api/client'
+
+// Mock the pulpApi.authenticate method
+vi.mock('@/api/client', () => ({
+  pulpApi: {
+    authenticate: vi.fn(),
+  },
+}))
 
 describe('authStore', () => {
   // Get a fresh reference to localStorage mock from setup
@@ -32,68 +40,99 @@ describe('authStore', () => {
   })
 
   describe('login', () => {
-    it('should set isAuthenticated to true when login is called', () => {
+    it('should set isAuthenticated to true when login is called with valid credentials', async () => {
+      // Mock successful authentication
+      vi.mocked(pulpApi.authenticate).mockResolvedValue({ username: 'testuser' })
+
       const { login } = useAuthStore.getState()
 
-      const result = login('testuser', 'testpassword')
+      const result = await login('testuser', 'testpassword')
 
       expect(result).toBe(true)
       expect(useAuthStore.getState().isAuthenticated).toBe(true)
     })
 
-    it('should set username when login is called', () => {
+    it('should set username when login is called with valid credentials', async () => {
+      vi.mocked(pulpApi.authenticate).mockResolvedValue({ username: 'testuser' })
+
       const { login } = useAuthStore.getState()
 
-      login('testuser', 'testpassword')
+      await login('testuser', 'testpassword')
 
       expect(useAuthStore.getState().username).toBe('testuser')
     })
 
-    it('should store base64 encoded credentials in localStorage', () => {
+    it('should store base64 encoded credentials in localStorage after successful auth', async () => {
+      vi.mocked(pulpApi.authenticate).mockResolvedValue({ username: 'testuser' })
+
       const { login } = useAuthStore.getState()
 
-      login('testuser', 'testpassword')
+      await login('testuser', 'testpassword')
 
       const expectedEncoded = btoa('testuser:testpassword')
       expect(localStorageMock.setItem).toHaveBeenCalledWith('pulp_auth', expectedEncoded)
       expect(localStorageMock.getItem('pulp_auth')).toBe(expectedEncoded)
     })
 
-    it('should encode credentials correctly with special characters', () => {
+    it('should encode credentials correctly with special characters', async () => {
+      vi.mocked(pulpApi.authenticate).mockResolvedValue({ username: 'user@domain.com' })
+
       const { login } = useAuthStore.getState()
 
-      login('user@domain.com', 'p@ss:word')
+      await login('user@domain.com', 'p@ss:word')
 
       const expectedEncoded = btoa('user@domain.com:p@ss:word')
       expect(localStorageMock.getItem('pulp_auth')).toBe(expectedEncoded)
     })
 
-    it('should return true on successful login', () => {
+    it('should return true on successful login', async () => {
+      vi.mocked(pulpApi.authenticate).mockResolvedValue({ username: 'anyuser' })
+
       const { login } = useAuthStore.getState()
 
-      const result = login('anyuser', 'anypassword')
+      const result = await login('anyuser', 'anypassword')
 
       expect(result).toBe(true)
     })
 
-    it('should update state from unauthenticated to authenticated', () => {
+    it('should update state from unauthenticated to authenticated', async () => {
+      vi.mocked(pulpApi.authenticate).mockResolvedValue({ username: 'newuser' })
+
       // Initial state should be unauthenticated
       expect(useAuthStore.getState().isAuthenticated).toBe(false)
       expect(useAuthStore.getState().username).toBeNull()
 
       const { login } = useAuthStore.getState()
-      login('newuser', 'password')
+      await login('newuser', 'password')
 
       // State should now be authenticated
       expect(useAuthStore.getState().isAuthenticated).toBe(true)
       expect(useAuthStore.getState().username).toBe('newuser')
     })
+
+    it('should throw error and not store credentials on authentication failure', async () => {
+      // Mock failed authentication
+      const error = new Error('Invalid credentials')
+      vi.mocked(pulpApi.authenticate).mockRejectedValue(error)
+
+      const { login } = useAuthStore.getState()
+
+      await expect(login('wronguser', 'wrongpass')).rejects.toThrow('Invalid credentials')
+
+      // State should remain unauthenticated
+      expect(useAuthStore.getState().isAuthenticated).toBe(false)
+      expect(useAuthStore.getState().username).toBeNull()
+
+      // Credentials should not be stored
+      expect(localStorageMock.getItem('pulp_auth')).toBeNull()
+    })
   })
 
   describe('logout', () => {
-    it('should set isAuthenticated to false when logout is called', () => {
+    it('should set isAuthenticated to false when logout is called', async () => {
       // First login
-      useAuthStore.getState().login('testuser', 'testpassword')
+      vi.mocked(pulpApi.authenticate).mockResolvedValue({ username: 'testuser' })
+      await useAuthStore.getState().login('testuser', 'testpassword')
       expect(useAuthStore.getState().isAuthenticated).toBe(true)
 
       // Then logout
@@ -102,9 +141,10 @@ describe('authStore', () => {
       expect(useAuthStore.getState().isAuthenticated).toBe(false)
     })
 
-    it('should set username to null when logout is called', () => {
+    it('should set username to null when logout is called', async () => {
       // First login
-      useAuthStore.getState().login('testuser', 'testpassword')
+      vi.mocked(pulpApi.authenticate).mockResolvedValue({ username: 'testuser' })
+      await useAuthStore.getState().login('testuser', 'testpassword')
       expect(useAuthStore.getState().username).toBe('testuser')
 
       // Then logout
@@ -113,9 +153,10 @@ describe('authStore', () => {
       expect(useAuthStore.getState().username).toBeNull()
     })
 
-    it('should remove credentials from localStorage', () => {
+    it('should remove credentials from localStorage', async () => {
       // First login to set credentials
-      useAuthStore.getState().login('testuser', 'testpassword')
+      vi.mocked(pulpApi.authenticate).mockResolvedValue({ username: 'testuser' })
+      await useAuthStore.getState().login('testuser', 'testpassword')
       expect(localStorageMock.getItem('pulp_auth')).not.toBeNull()
 
       // Clear mock call history
@@ -170,9 +211,10 @@ describe('authStore', () => {
       expect(useAuthStore.getState().isAuthenticated).toBe(true)
     })
 
-    it('should not change isAuthenticated if already authenticated', () => {
+    it('should not change isAuthenticated if already authenticated', async () => {
       // Login first
-      useAuthStore.getState().login('testuser', 'testpassword')
+      vi.mocked(pulpApi.authenticate).mockResolvedValue({ username: 'testuser' })
+      await useAuthStore.getState().login('testuser', 'testpassword')
       expect(useAuthStore.getState().isAuthenticated).toBe(true)
 
       // Clear mock call history
@@ -185,9 +227,10 @@ describe('authStore', () => {
       expect(useAuthStore.getState().isAuthenticated).toBe(true)
     })
 
-    it('should return false after logout', () => {
+    it('should return false after logout', async () => {
       // Login first
-      useAuthStore.getState().login('testuser', 'testpassword')
+      vi.mocked(pulpApi.authenticate).mockResolvedValue({ username: 'testuser' })
+      await useAuthStore.getState().login('testuser', 'testpassword')
 
       // Logout
       useAuthStore.getState().logout()
@@ -199,9 +242,11 @@ describe('authStore', () => {
   })
 
   describe('Zustand persist middleware', () => {
-    it('should persist isAuthenticated state to localStorage under pulp-auth key', () => {
+    it('should persist isAuthenticated state to localStorage under pulp-auth key', async () => {
+      vi.mocked(pulpApi.authenticate).mockResolvedValue({ username: 'persistuser' })
+
       const { login } = useAuthStore.getState()
-      login('persistuser', 'password')
+      await login('persistuser', 'password')
 
       // The persist middleware stores state as JSON
       const storedValue = localStorageMock.getItem('pulp-auth')
@@ -214,9 +259,11 @@ describe('authStore', () => {
       }
     })
 
-    it('should only persist isAuthenticated and username (not functions)', () => {
+    it('should only persist isAuthenticated and username (not functions)', async () => {
+      vi.mocked(pulpApi.authenticate).mockResolvedValue({ username: 'persistuser' })
+
       const { login } = useAuthStore.getState()
-      login('persistuser', 'password')
+      await login('persistuser', 'password')
 
       const storedValue = localStorageMock.getItem('pulp-auth')
       expect(storedValue).not.toBeNull()
@@ -232,9 +279,11 @@ describe('authStore', () => {
       }
     })
 
-    it('should persist version number for migration support', () => {
+    it('should persist version number for migration support', async () => {
+      vi.mocked(pulpApi.authenticate).mockResolvedValue({ username: 'testuser' })
+
       const { login } = useAuthStore.getState()
-      login('testuser', 'password')
+      await login('testuser', 'password')
 
       const storedValue = localStorageMock.getItem('pulp-auth')
       expect(storedValue).not.toBeNull()
@@ -245,9 +294,11 @@ describe('authStore', () => {
       }
     })
 
-    it('should clear persisted state on logout', () => {
+    it('should clear persisted state on logout', async () => {
+      vi.mocked(pulpApi.authenticate).mockResolvedValue({ username: 'testuser' })
+
       const { login, logout } = useAuthStore.getState()
-      login('testuser', 'password')
+      await login('testuser', 'password')
 
       // Verify state is persisted
       let storedValue = localStorageMock.getItem('pulp-auth')
@@ -272,7 +323,9 @@ describe('authStore', () => {
   })
 
   describe('integration scenarios', () => {
-    it('should handle complete login-logout cycle', () => {
+    it('should handle complete login-logout cycle', async () => {
+      vi.mocked(pulpApi.authenticate).mockResolvedValue({ username: 'cycleuser' })
+
       const store = useAuthStore.getState()
 
       // Start unauthenticated
@@ -280,7 +333,7 @@ describe('authStore', () => {
       expect(store.username).toBeNull()
 
       // Login
-      store.login('cycleuser', 'cyclepass')
+      await store.login('cycleuser', 'cyclepass')
       expect(useAuthStore.getState().isAuthenticated).toBe(true)
       expect(useAuthStore.getState().username).toBe('cycleuser')
       expect(localStorageMock.getItem('pulp_auth')).toBe(btoa('cycleuser:cyclepass'))
@@ -291,13 +344,15 @@ describe('authStore', () => {
       expect(useAuthStore.getState().username).toBeNull()
     })
 
-    it('should handle multiple logins with different users', () => {
+    it('should handle multiple logins with different users', async () => {
       // First user login
-      useAuthStore.getState().login('user1', 'pass1')
+      vi.mocked(pulpApi.authenticate).mockResolvedValueOnce({ username: 'user1' })
+      await useAuthStore.getState().login('user1', 'pass1')
       expect(useAuthStore.getState().username).toBe('user1')
 
       // Second user login (without logout)
-      useAuthStore.getState().login('user2', 'pass2')
+      vi.mocked(pulpApi.authenticate).mockResolvedValueOnce({ username: 'user2' })
+      await useAuthStore.getState().login('user2', 'pass2')
       expect(useAuthStore.getState().username).toBe('user2')
       expect(localStorageMock.getItem('pulp_auth')).toBe(btoa('user2:pass2'))
     })

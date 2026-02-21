@@ -167,6 +167,32 @@ export function hasAuthCredentials(): boolean {
 
 // API endpoints object for easier imports
 export const pulpApi = {
+  // Authentication
+  authenticate: async (username: string, password: string): Promise<{ username: string }> => {
+    const encoded = btoa(`${username}:${password}`)
+    const response = await fetch(`${API_BASE_PATH}/users/`, {
+      headers: {
+        Authorization: `Basic ${encoded}`,
+      },
+    })
+
+    if (response.status === 401) {
+      throw new PulpApiError(401, { detail: 'Invalid credentials' })
+    }
+
+    if (!response.ok) {
+      let errorData: ApiError = { detail: response.statusText }
+      try {
+        errorData = await response.json()
+      } catch {
+        // Ignore JSON parse errors
+      }
+      throw new PulpApiError(response.status, errorData)
+    }
+
+    return { username }
+  },
+
   // Status
   getStatus: () => apiRequest('/status/'),
 

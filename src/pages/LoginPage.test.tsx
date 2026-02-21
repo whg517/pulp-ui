@@ -70,17 +70,13 @@ describe('LoginPage', () => {
 
   it('shows loading state when submitting with delayed response', async () => {
     server.use(
-      http.get('/pulp/api/v3/status/', async () => {
+      http.get('/pulp/api/v3/users/', async () => {
         await delay(200)
         return HttpResponse.json({
-          pulp_href: '/pulp/api/v3/status/',
-          pulp_created: new Date().toISOString(),
-          versions: [{ component: 'core', version: '3.40.0' }],
-          public_key: null,
-          known_content: 100,
-          database_connection: { connected: true },
-          redis_connection: { connected: true },
-          storage: { total: 1000000, used: 500000, free: 500000 },
+          count: 1,
+          next: null,
+          previous: null,
+          results: [{ pulp_href: '/pulp/api/v3/users/1/', username: 'testuser' }],
         })
       })
     )
@@ -102,6 +98,17 @@ describe('LoginPage', () => {
   })
 
   it('navigates to home on successful login', async () => {
+    server.use(
+      http.get('/pulp/api/v3/users/', () => {
+        return HttpResponse.json({
+          count: 1,
+          next: null,
+          previous: null,
+          results: [{ pulp_href: '/pulp/api/v3/users/1/', username: 'testuser' }],
+        })
+      })
+    )
+
     renderWithProviders(<LoginPage />)
 
     const usernameInput = screen.getByLabelText(/username/i)
@@ -120,7 +127,7 @@ describe('LoginPage', () => {
 
   it('shows error message on API error', async () => {
     server.use(
-      http.get('/pulp/api/v3/status/', () => {
+      http.get('/pulp/api/v3/users/', () => {
         return HttpResponse.json(
           { detail: 'Invalid credentials' },
           { status: 401 }
@@ -146,7 +153,7 @@ describe('LoginPage', () => {
 
   it('shows error message on network error', async () => {
     server.use(
-      http.get('/pulp/api/v3/status/', () => {
+      http.get('/pulp/api/v3/users/', () => {
         return HttpResponse.error()
       })
     )
