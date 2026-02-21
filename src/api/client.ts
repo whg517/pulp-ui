@@ -14,6 +14,25 @@ export class PulpApiError extends Error {
   }
 }
 
+/**
+ * Handle 401 Unauthorized responses
+ * Clears credentials and redirects to login page
+ * Skips redirect if already on login page (let login form handle the error)
+ */
+function handleUnauthorized(): void {
+  // Clear stored credentials
+  localStorage.removeItem('pulp_auth')
+  localStorage.removeItem('pulp-auth')
+
+  // Only redirect if not already on login page
+  if (window.location.pathname === '/login') {
+    return
+  }
+
+  // Redirect to login page
+  window.location.href = '/login'
+}
+
 export interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>
 }
@@ -102,6 +121,11 @@ export async function apiRequest<T>(
   }
 
   if (!response.ok) {
+    // Handle 401 Unauthorized - clear credentials and redirect to login
+    if (response.status === 401) {
+      handleUnauthorized()
+    }
+
     let errorData: ApiError = { detail: response.statusText }
     try {
       errorData = await response.json()

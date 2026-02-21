@@ -29,6 +29,13 @@ export default defineConfig({
             ? 'http://localhost:24817'
             : 'http://localhost:8080',
         changeOrigin: true,
+        configure: (proxy) => {
+          // Remove WWW-Authenticate header to prevent browser Basic Auth popup
+          // This allows the frontend to handle 401 errors gracefully
+          proxy.on('proxyRes', (proxyRes) => {
+            delete proxyRes.headers['www-authenticate']
+          })
+        },
       },
     },
   },
