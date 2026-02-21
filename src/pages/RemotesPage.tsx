@@ -26,13 +26,14 @@ import {
 import { useRemotes, useDeleteRemote } from '@/hooks/useApi'
 import type { PulpRemote } from '@/types/pulp'
 import { formatDistanceToNow } from 'date-fns'
-import { RemoteEditDialog } from '@/components/remotes/RemoteEditDialog'
+import { RemoteEditDialog, RemoteCreateDialog } from '@/components/remotes'
 
 export function RemotesPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [remoteToDelete, setRemoteToDelete] = useState<PulpRemote | null>(null)
   const [remoteToEdit, setRemoteToEdit] = useState<PulpRemote | null>(null)
+  const [isCreateOpen, setIsCreateOpen] = useState(false)
   const pageSize = 10
 
   const { data, isLoading, error, refetch } = useRemotes({
@@ -62,7 +63,7 @@ export function RemotesPage() {
           <h1 className="text-3xl font-bold">Remotes</h1>
           <p className="text-muted-foreground">Configure external content sources</p>
         </div>
-        <Button>
+        <Button onClick={() => setIsCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Create Remote
         </Button>
@@ -205,6 +206,12 @@ export function RemotesPage() {
         open={!!remoteToEdit}
         onOpenChange={(open) => !open && setRemoteToEdit(null)}
         remote={remoteToEdit}
+      />
+
+      {/* Create Remote Dialog */}
+      <RemoteCreateDialog
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
       />
     </div>
   )

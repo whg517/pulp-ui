@@ -5,24 +5,34 @@ import { DashboardPage } from '@/pages/DashboardPage'
 import { RepositoriesPage } from '@/pages/RepositoriesPage'
 import { RepositoryDetailPage } from '@/pages/RepositoryDetailPage'
 import { RemotesPage } from '@/pages/RemotesPage'
+import { RemoteDetailPage } from '@/pages/RemoteDetailPage'
 import { DistributionsPage } from '@/pages/DistributionsPage'
+import { DistributionDetailPage } from '@/pages/DistributionDetailPage'
 import { TasksPage } from '@/pages/TasksPage'
 import { TaskDetailPage } from '@/pages/TaskDetailPage'
 import { ContentPage } from '@/pages/ContentPage'
 import { PublicationsPage } from '@/pages/PublicationsPage'
+import { PublicationDetailPage } from '@/pages/PublicationDetailPage'
 import { WorkersPage } from '@/pages/WorkersPage'
+import { WorkerDetailPage } from '@/pages/WorkerDetailPage'
 import { UsersPage } from '@/pages/UsersPage'
+import { UserDetailPage } from '@/pages/UserDetailPage'
 import { GroupsPage } from '@/pages/GroupsPage'
+import { GroupDetailPage } from '@/pages/GroupDetailPage'
 import { DomainsPage } from '@/pages/DomainsPage'
 import { OrphansPage } from '@/pages/OrphansPage'
 import { UploadsPage } from '@/pages/UploadsPage'
 import { UploadFilePage } from '@/pages/UploadFilePage'
 import { ArtifactsPage } from '@/pages/ArtifactsPage'
+import { ArtifactDetailPage } from '@/pages/ArtifactDetailPage'
 import { ImportsPage } from '@/pages/ImportsPage'
 import { ExportsPage } from '@/pages/ExportsPage'
 import { RolesPage } from '@/pages/RolesPage'
 import { AccessPoliciesPage } from '@/pages/AccessPoliciesPage'
 import { SchedulesPage } from '@/pages/SchedulesPage'
+import { ContentGuardsPage } from '@/pages/ContentGuardsPage'
+import { ACSPage } from '@/pages/ACSPage'
+import { SigningServicesPage } from '@/pages/SigningServicesPage'
 import { useAuthStore } from '@/stores/authStore'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -79,8 +89,16 @@ export const router = createBrowserRouter([
         element: <RemotesPage />,
       },
       {
+        path: 'remotes/:href',
+        element: <RemoteDetailPage />,
+      },
+      {
         path: 'distributions',
         element: <DistributionsPage />,
+      },
+      {
+        path: 'distributions/:href',
+        element: <DistributionDetailPage />,
       },
       {
         path: 'tasks',
@@ -99,16 +117,32 @@ export const router = createBrowserRouter([
         element: <PublicationsPage />,
       },
       {
+        path: 'publications/:href',
+        element: <PublicationDetailPage />,
+      },
+      {
         path: 'workers',
         element: <WorkersPage />,
+      },
+      {
+        path: 'workers/:href',
+        element: <WorkerDetailPage />,
       },
       {
         path: 'users',
         element: <UsersPage />,
       },
       {
+        path: 'users/:href',
+        element: <UserDetailPage />,
+      },
+      {
         path: 'groups',
         element: <GroupsPage />,
+      },
+      {
+        path: 'groups/:href',
+        element: <GroupDetailPage />,
       },
       {
         path: 'domains',
@@ -131,6 +165,10 @@ export const router = createBrowserRouter([
         element: <ArtifactsPage />,
       },
       {
+        path: 'artifacts/:href',
+        element: <ArtifactDetailPage />,
+      },
+      {
         path: 'imports',
         element: <ImportsPage />,
       },
@@ -149,6 +187,18 @@ export const router = createBrowserRouter([
       {
         path: 'schedules',
         element: <SchedulesPage />,
+      },
+      {
+        path: 'content-guards',
+        element: <ContentGuardsPage />,
+      },
+      {
+        path: 'acs',
+        element: <ACSPage />,
+      },
+      {
+        path: 'signing-services',
+        element: <SigningServicesPage />,
       },
     ],
   },
