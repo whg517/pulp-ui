@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Search, RefreshCw, Trash2, Plus, Pencil, Eye, Lock } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Search, RefreshCw, Trash2, Plus, Pencil, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -34,6 +35,7 @@ import { PulpApiError } from '@/api/client'
 import type { PulpRole } from '@/types/rbac'
 import { RoleForm, useRoleForm, getRoleFormDefaults, type RoleFormData } from '@/components/rbac/RoleForm'
 import { PermissionEditor } from '@/components/rbac/PermissionEditor'
+import { RoleAssignmentCounts, RoleGroupCounts } from '@/components/rbac/RoleAssignmentCounts'
 import { useRoles, usePermissions, useCreateRole, useUpdateRole, useDeleteRole } from '@/hooks/useApi'
 import { toast } from 'sonner'
 
@@ -42,7 +44,6 @@ export function RolesPage() {
   const [page, setPage] = useState(1)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingRole, setEditingRole] = useState<PulpRole | null>(null)
-  const [viewingRole, setViewingRole] = useState<PulpRole | null>(null)
   const [roleToDelete, setRoleToDelete] = useState<PulpRole | null>(null)
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([])
   const pageSize = 10
@@ -78,10 +79,6 @@ export function RolesPage() {
     const defaults = getRoleFormDefaults(role)
     editForm.reset(defaults)
     setSelectedPermissions(role.permissions || [])
-  }
-
-  const handleView = (role: PulpRole) => {
-    setViewingRole(role)
   }
 
   const handleDeleteConfirm = () => {
@@ -190,6 +187,8 @@ export function RolesPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Permissions</TableHead>
+                  <TableHead>Users</TableHead>
+                  <TableHead>Groups</TableHead>
                   <TableHead>Locked</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -197,12 +196,25 @@ export function RolesPage() {
               <TableBody>
                 {data?.results?.map((role: PulpRole) => (
                   <TableRow key={role.pulp_href}>
-                    <TableCell className="font-medium">{role.name}</TableCell>
+                    <TableCell>
+                      <Link
+                        to={`/roles/${encodeURIComponent(role.pulp_href)}`}
+                        className="font-medium hover:underline"
+                      >
+                        {role.name}
+                      </Link>
+                    </TableCell>
                     <TableCell className="text-muted-foreground max-w-xs truncate">
                       {role.description || '-'}
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary">{role.permissions?.length || 0}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <RoleAssignmentCounts roleHref={role.pulp_href} />
+                    </TableCell>
+                    <TableCell>
+                      <RoleGroupCounts roleHref={role.pulp_href} />
                     </TableCell>
                     <TableCell>
                       {role.locked ? (
@@ -213,14 +225,6 @@ export function RolesPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleView(role)}
-                          title="View role details"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -274,56 +278,6 @@ export function RolesPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* View Role Dialog */}
-      <Dialog open={!!viewingRole} onOpenChange={() => setViewingRole(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Role Details</DialogTitle>
-          </DialogHeader>
-          {viewingRole && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium">Name</label>
-                  <p className="text-sm text-muted-foreground">{viewingRole.name}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium">Locked</label>
-                  <p className="text-sm text-muted-foreground">
-                    {viewingRole.locked ? 'Yes' : 'No'}
-                  </p>
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium">Description</label>
-                <p className="text-sm text-muted-foreground">
-                  {viewingRole.description || 'No description'}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Permissions ({viewingRole.permissions?.length || 0})</label>
-                <div className="max-h-64 overflow-y-auto border rounded-md p-2">
-                  {viewingRole.permissions?.length > 0 ? (
-                    <div className="space-y-1">
-                      {viewingRole.permissions.map((perm) => (
-                        <div key={perm} className="text-sm py-1 px-2 bg-muted/50 rounded">
-                          {perm}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground text-center py-2">No permissions assigned</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setViewingRole(null)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Create Role Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>

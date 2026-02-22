@@ -27,6 +27,7 @@ import { ArtifactDetailPage } from '@/pages/ArtifactDetailPage'
 import { ImportsPage } from '@/pages/ImportsPage'
 import { ExportsPage } from '@/pages/ExportsPage'
 import { RolesPage } from '@/pages/RolesPage'
+import { RoleDetailPage } from '@/pages/RoleDetailPage'
 import { AccessPoliciesPage } from '@/pages/AccessPoliciesPage'
 import { SchedulesPage } from '@/pages/SchedulesPage'
 import { ContentGuardsPage } from '@/pages/ContentGuardsPage'
@@ -174,6 +175,10 @@ export const router = createBrowserRouter([
       {
         path: 'roles',
         element: <RolesPage />,
+      },
+      {
+        path: 'roles/:href',
+        element: <RoleDetailPage />,
       },
       {
         path: 'access-policies',

@@ -1,4 +1,5 @@
 import type { ApiError, PulpPagination } from '@/types/pulp'
+import type { PulpRole } from '@/types/rbac'
 
 const API_BASE_PATH = '/pulp/api/v3'
 
@@ -203,7 +204,7 @@ export const pulpApi = {
   getRepository: (href: string) => apiRequest(sanitizeHref(href)),
 
   createRepository: (data: Partial<Record<string, unknown>>) =>
-    apiRequest('/repositories/', { method: 'POST', body: JSON.stringify(data) }),
+    apiRequest('/repositories/file/file/', { method: 'POST', body: JSON.stringify(data) }),
 
   updateRepository: (href: string, data: Partial<Record<string, unknown>>) =>
     apiRequest(sanitizeHref(href), {
@@ -227,7 +228,7 @@ export const pulpApi = {
   getRemote: (href: string) => apiRequest(sanitizeHref(href)),
 
   createRemote: (data: Partial<Record<string, unknown>>) =>
-    apiRequest('/remotes/', { method: 'POST', body: JSON.stringify(data) }),
+    apiRequest('/remotes/file/file/', { method: 'POST', body: JSON.stringify(data) }),
 
   updateRemote: (href: string, data: Partial<Record<string, unknown>>) =>
     apiRequest(sanitizeHref(href), {
@@ -245,7 +246,7 @@ export const pulpApi = {
   getDistribution: (href: string) => apiRequest(sanitizeHref(href)),
 
   createDistribution: (data: Partial<Record<string, unknown>>) =>
-    apiRequest('/distributions/', { method: 'POST', body: JSON.stringify(data) }),
+    apiRequest('/distributions/file/file/', { method: 'POST', body: JSON.stringify(data) }),
 
   updateDistribution: (href: string, data: Partial<Record<string, unknown>>) =>
     apiRequest(sanitizeHref(href), {
@@ -272,7 +273,7 @@ export const pulpApi = {
   getPublication: (href: string) => apiRequest(sanitizeHref(href)),
 
   createPublication: (data: Partial<Record<string, unknown>>) =>
-    apiRequest('/publications/', { method: 'POST', body: JSON.stringify(data) }),
+    apiRequest('/publications/file/file/', { method: 'POST', body: JSON.stringify(data) }),
 
   deletePublication: (href: string) =>
     apiRequest(sanitizeHref(href), { method: 'DELETE' }),
@@ -295,8 +296,14 @@ export const pulpApi = {
 
   getUpload: (href: string) => apiRequest(sanitizeHref(href)),
 
-  createUpload: (data: { size: number; chunk_size?: number }) =>
-    apiRequest('/uploads/', { method: 'POST', body: JSON.stringify(data) }),
+  createUpload: (data: { size: number; chunk_size?: number }) => {
+    // Only include chunk_size if explicitly provided - Pulp API may reject it otherwise
+    const payload: { size: number; chunk_size?: number } = { size: data.size }
+    if (data.chunk_size !== undefined && data.chunk_size > 0) {
+      payload.chunk_size = data.chunk_size
+    }
+    return apiRequest('/uploads/', { method: 'POST', body: JSON.stringify(payload) })
+  },
 
   updateUploadChunk: (href: string, chunkIndex: number, contentRange: string, data: Blob) => {
     const url = buildUrl(`${sanitizeHref(href)}chunks/${chunkIndex}/`)
@@ -354,6 +361,24 @@ export const pulpApi = {
 
   deleteGroup: (href: string) =>
     apiRequest(sanitizeHref(href), { method: 'DELETE' }),
+
+  // Group membership management
+  addUserToGroup: (groupHref: string, userHref: string) => {
+    // Pulp API expects username for adding users to group
+    const username = userHref.split('/').filter(Boolean).pop() || ''
+    return apiRequest(`${sanitizeHref(groupHref)}users/`, {
+      method: 'POST',
+      body: JSON.stringify({ username }),
+    })
+  },
+
+  removeUserFromGroup: (groupHref: string, userHref: string) => {
+    // Pulp API expects username for removing users from group
+    const username = userHref.split('/').filter(Boolean).pop() || ''
+    return apiRequest(`${sanitizeHref(groupHref)}users/${username}/`, {
+      method: 'DELETE',
+    })
+  },
 
   // Workers
   getWorkers: (params?: Record<string, string | number | boolean | undefined>) =>
@@ -513,10 +538,112 @@ export const pulpApi = {
   deleteRole: (href: string) =>
     apiRequest(sanitizeHref(href), { method: 'DELETE' }),
 
-  // Permissions - no direct API endpoint, permissions are managed via roles
-  getPermissions: (_params?: Record<string, string | number | boolean | undefined>) =>
-    // Return empty result as there's no direct permissions listing endpoint
-    Promise.resolve({ count: 0, next: null, previous: null, results: [] }),
+  // Permissions - extracted from roles since there's no direct endpoint
+  // This fetches all roles and extracts unique permissions
+  getPermissions: async () => {
+    try {
+      // Fetch roles to extract permissions
+      const roles = await apiPaginatedRequest<PulpRole>('/roles/', { params: { limit: 100 } })
+      const permissionSet = new Set<string>()
+      const permissions: { codename: string; name: string }[] = []
+
+      roles.results?.forEach(role => {
+        role.permissions?.forEach(perm => {
+          if (!permissionSet.has(perm)) {
+            permissionSet.add(perm)
+            permissions.push({ codename: perm, name: perm })
+          }
+        })
+      })
+
+      // Sort permissions alphabetically
+      permissions.sort((a, b) => a.codename.localeCompare(b.codename))
+
+      return {
+        count: permissions.length,
+        next: null,
+        previous: null,
+        results: permissions,
+      }
+    } catch {
+      return { count: 0, next: null, previous: null, results: [] }
+    }
+  },
+
+  // Bulk operations for group membership
+  bulkAddUsersToGroup: async (groupHref: string, usernames: string[]) => {
+    const results = await Promise.all(
+      usernames.map(username =>
+        apiRequest(`${sanitizeHref(groupHref)}users/`, {
+          method: 'POST',
+          body: JSON.stringify({ username }),
+        })
+      )
+    )
+    return results
+  },
+
+  bulkRemoveUsersFromGroup: async (groupHref: string, usernames: string[]) => {
+    const results = await Promise.all(
+      usernames.map(username =>
+        apiRequest(`${sanitizeHref(groupHref)}users/${username}/`, {
+          method: 'DELETE',
+        })
+      )
+    )
+    return results
+  },
+
+  // Get role assignment counts
+  getRoleAssignmentCounts: async (roleHref: string) => {
+    const [userRoles, groupRoles] = await Promise.all([
+      apiPaginatedRequest('/user_roles/', { params: { role: roleHref, limit: 1 } }).catch(() =>
+        ({ count: 0, next: null, previous: null, results: [] })
+      ),
+      apiPaginatedRequest('/group_roles/', { params: { role: roleHref, limit: 1 } }).catch(() =>
+        ({ count: 0, next: null, previous: null, results: [] })
+      ),
+    ])
+    return {
+      user_count: userRoles.count,
+      group_count: groupRoles.count,
+    }
+  },
+
+  // User Role Assignments
+  getUserRoles: (params?: Record<string, string | number | boolean | undefined>) =>
+    apiPaginatedRequest('/user_roles/', { params }).catch(() =>
+      ({ count: 0, next: null, previous: null, results: [] })
+    ),
+
+  assignRoleToUser: (data: { user: string; role: string }) =>
+    apiRequest('/user_roles/', { method: 'POST', body: JSON.stringify(data) }),
+
+  revokeRoleFromUser: (href: string) =>
+    apiRequest(sanitizeHref(href), { method: 'DELETE' }),
+
+  // Group Role Assignments
+  getGroupRoles: (params?: Record<string, string | number | boolean | undefined>) =>
+    apiPaginatedRequest('/group_roles/', { params }).catch(() =>
+      ({ count: 0, next: null, previous: null, results: [] })
+    ),
+
+  assignRoleToGroup: (data: { group: string; role: string }) =>
+    apiRequest('/group_roles/', { method: 'POST', body: JSON.stringify(data) }),
+
+  revokeRoleFromGroup: (href: string) =>
+    apiRequest(sanitizeHref(href), { method: 'DELETE' }),
+
+  // Get users/groups for a specific role
+  getUserRolesForRole: (roleHref: string, params?: Record<string, string | number | boolean | undefined>) =>
+    apiPaginatedRequest('/user_roles/', { params: { ...params, role: roleHref } }).catch(() =>
+      ({ count: 0, next: null, previous: null, results: [] })
+    ),
+
+  getGroupRolesForRole: (roleHref: string, params?: Record<string, string | number | boolean | undefined>) =>
+    apiPaginatedRequest('/group_roles/', { params: { ...params, role: roleHref } }).catch(() =>
+      ({ count: 0, next: null, previous: null, results: [] })
+    ),
 
   // ACS (Alternate Content Sources) - requires rpm/file plugins
   // These endpoints may return 404 if plugins are not installed

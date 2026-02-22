@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Search, RefreshCw, Trash2, Eye } from 'lucide-react'
+import { Search, RefreshCw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -144,8 +144,13 @@ export function ArtifactsPage() {
               <TableBody>
                 {data?.results?.map((artifact: PulpArtifact) => (
                   <TableRow key={artifact.pulp_href}>
-                    <TableCell className="font-medium font-mono text-sm">
-                      {artifact.file}
+                    <TableCell>
+                      <button
+                        onClick={() => handleViewDetail(artifact)}
+                        className="font-medium font-mono text-sm hover:underline text-left"
+                      >
+                        {artifact.file}
+                      </button>
                     </TableCell>
                     <TableCell className="text-muted-foreground font-mono text-xs">
                       {truncateHash(artifact.sha256)}
@@ -160,14 +165,6 @@ export function ArtifactsPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleViewDetail(artifact)}
-                          aria-label="View details"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"

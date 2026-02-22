@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Search, RefreshCw, Trash2, Plus, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -130,7 +131,14 @@ export function DomainsPage() {
               <TableBody>
                 {data?.results?.map((domain: PulpDomain) => (
                   <TableRow key={domain.pulp_href}>
-                    <TableCell className="font-medium">{domain.name}</TableCell>
+                    <TableCell>
+                      <Link
+                        to={`/domains/${encodeURIComponent(domain.pulp_href)}`}
+                        className="font-medium hover:underline"
+                      >
+                        {domain.name}
+                      </Link>
+                    </TableCell>
                     <TableCell className="text-muted-foreground max-w-xs truncate">
                       {domain.description || '-'}
                     </TableCell>

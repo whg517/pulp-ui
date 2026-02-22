@@ -7,6 +7,12 @@ export interface PulpPagination<T> {
   results: T[]
 }
 
+export interface PulpTaskError {
+  error_code?: string
+  description?: string
+  [key: string]: unknown
+}
+
 export interface PulpTask {
   pulp_href: string
   pulp_created: string
@@ -16,7 +22,7 @@ export interface PulpTask {
   logging_cid: string
   started_at: string | null
   finished_at: string | null
-  error: string | null
+  error: string | PulpTaskError | null
   worker: string | null
   parent_task: string | null
   child_tasks: string[]

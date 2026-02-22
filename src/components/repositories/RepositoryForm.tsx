@@ -3,10 +3,16 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { FormInput } from '@/components/forms/FormInput'
 import { FormTextarea } from '@/components/forms/FormTextarea'
-import { FormSelect } from '@/components/forms/FormSelect'
 import { FormSwitch } from '@/components/forms/FormSwitch'
 import { FormField } from '@/components/forms/FormField'
 import { LabelsEditor } from '@/components/labels'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import type { PulpRemote } from '@/types/pulp'
 
 const repositoryFormSchema = z.object({
@@ -41,14 +47,17 @@ export function useRepositoryForm(defaultValues?: Partial<RepositoryFormData>) {
   })
 }
 
+// Special value for "None" option since Radix Select doesn't allow empty string values
+const NONE_VALUE = '__none__'
+
 export function RepositoryForm({ form, remotes, isLoadingRemotes }: RepositoryFormProps) {
   const remoteOptions = remotes.map((remote) => ({
     value: remote.pulp_href,
     label: remote.name,
   }))
 
-  // Add "None" option at the beginning
-  const optionsWithNone = [{ value: '', label: 'None' }, ...remoteOptions]
+  // Add "None" option at the beginning using a special value
+  const optionsWithNone = [{ value: NONE_VALUE, label: 'None' }, ...remoteOptions]
 
   return (
     <div className="space-y-4">
@@ -78,14 +87,33 @@ export function RepositoryForm({ form, remotes, isLoadingRemotes }: RepositoryFo
         disabled={form.formState.isSubmitting}
       />
 
-      <FormSelect<RepositoryFormData>
+      <FormField<RepositoryFormData>
         name="remote"
         label="Remote"
         description="Select a remote for syncing (optional)"
-        options={optionsWithNone}
-        placeholder={isLoadingRemotes ? 'Loading remotes...' : 'Select a remote'}
-        disabled={form.formState.isSubmitting || isLoadingRemotes}
-      />
+      >
+        {({ value, onChange }) => {
+          const stringValue = value == null || value === '' ? NONE_VALUE : String(value)
+          return (
+          <Select
+            value={stringValue}
+            onValueChange={(v) => onChange(v === NONE_VALUE ? null : v)}
+            disabled={form.formState.isSubmitting || isLoadingRemotes}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={isLoadingRemotes ? 'Loading remotes...' : 'Select a remote'} />
+            </SelectTrigger>
+            <SelectContent>
+              {optionsWithNone.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          )
+        }}
+      </FormField>
 
       <FormSwitch<RepositoryFormData>
         name="autopublish"

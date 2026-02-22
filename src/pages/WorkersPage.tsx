@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -70,7 +71,14 @@ export function WorkersPage() {
               <TableBody>
                 {data?.results?.map((worker: PulpWorker) => (
                   <TableRow key={worker.pulp_href}>
-                    <TableCell className="font-medium">{worker.name}</TableCell>
+                    <TableCell>
+                      <Link
+                        to={`/workers/${encodeURIComponent(worker.pulp_href)}`}
+                        className="font-medium hover:underline"
+                      >
+                        {worker.name}
+                      </Link>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={worker.online ? 'success' : 'destructive'}>
                         {worker.online ? 'Online' : 'Offline'}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Search, RefreshCw, Trash2, Plus, Pencil, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Search, RefreshCw, Trash2, Plus, Pencil, ToggleLeft, ToggleRight, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,8 +34,28 @@ import {
 import { FormDialog } from '@/components/forms/FormDialog'
 import { useSchedules, useDeleteSchedule, useCreateSchedule, useUpdateSchedule } from '@/hooks/useApi'
 import { ScheduleForm, useScheduleForm, type ScheduleFormData } from '@/components/schedules/ScheduleForm'
+import { PulpApiError } from '@/api/client'
 import type { PulpSchedule } from '@/types/pulp'
 import { formatDistanceToNow, format } from 'date-fns'
+
+// Helper function to get user-friendly error message
+function getErrorMessage(error: unknown, resourceName: string): string {
+  if (error instanceof PulpApiError) {
+    switch (error.status) {
+      case 404:
+        return `${resourceName} API not available. This feature may require specific Pulp plugins.`
+      case 401:
+        return 'Authentication required. Please log in again.'
+      case 403:
+        return 'You do not have permission to access this resource.'
+      case 500:
+        return 'Server error. Please try again later.'
+      default:
+        return error.data.detail || `Failed to load ${resourceName.toLowerCase()} (${error.status})`
+    }
+  }
+  return `Failed to load ${resourceName.toLowerCase()}. Please try again.`
+}
 
 // Helper function to parse JSON with error handling
 function parseJsonArguments(jsonString: string | undefined): { data: Record<string, unknown>; error: string | null } {
@@ -202,7 +223,16 @@ export function SchedulesPage() {
               ))}
             </div>
           ) : error ? (
-            <p className="text-center text-destructive py-8">Failed to load schedules</p>
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error loading schedules</AlertTitle>
+              <AlertDescription>
+                {getErrorMessage(error, 'Schedules')}
+                <Button variant="outline" size="sm" onClick={() => refetch()} className="mt-2">
+                  Try Again
+                </Button>
+              </AlertDescription>
+            </Alert>
           ) : data?.results?.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
               {search ? 'No schedules found matching your search' : 'No schedules found'}
@@ -223,7 +253,14 @@ export function SchedulesPage() {
               <TableBody>
                 {data?.results?.map((schedule: PulpSchedule) => (
                   <TableRow key={schedule.pulp_href}>
-                    <TableCell className="font-medium">{schedule.name}</TableCell>
+                    <TableCell>
+                      <button
+                        onClick={() => setDetailsSchedule(schedule)}
+                        className="font-medium hover:underline text-left"
+                      >
+                        {schedule.name}
+                      </button>
+                    </TableCell>
                     <TableCell className="max-w-xs truncate text-muted-foreground">
                       {schedule.task?.split('.').pop() || schedule.task}
                     </TableCell>
@@ -245,14 +282,6 @@ export function SchedulesPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDetailsSchedule(schedule)}
-                          title="View details"
-                        >
-                          <Search className="h-4 w-4" />
-                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"

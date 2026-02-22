@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Search, RefreshCw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -115,8 +116,13 @@ export function PublicationsPage() {
               <TableBody>
                 {data?.results?.map((publication: PulpPublication) => (
                   <TableRow key={publication.pulp_href}>
-                    <TableCell className="font-medium">
-                      {extractRepositoryName(publication.repository_version)}
+                    <TableCell>
+                      <Link
+                        to={`/publications/${encodeURIComponent(publication.pulp_href)}`}
+                        className="font-medium hover:underline"
+                      >
+                        {extractRepositoryName(publication.repository_version)}
+                      </Link>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {publication.distributions?.length || 0}

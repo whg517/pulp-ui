@@ -1,8 +1,18 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { FormSelect } from '@/components/forms/FormSelect'
+import { FormField } from '@/components/forms/FormField'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import type { PulpRepositoryVersion } from '@/types/pulp'
+
+// Special value for "None" option since Radix Select doesn't allow empty string values
+const NONE_VALUE = '__none__'
 
 const exportFormSchema = z.object({
   start_repository_version: z.string().min(1, 'Start repository version is required'),
@@ -36,8 +46,10 @@ export function ExportForm({ form, repositoryVersions, isLoadingVersions }: Expo
     label: `Version ${version.number}`,
   }))
 
+  const endVersionOptions = [{ value: NONE_VALUE, label: 'None (single version)' }, ...versionOptions]
+
   const chunkSizeOptions = [
-    { value: '', label: 'None (single file)' },
+    { value: NONE_VALUE, label: 'None (single file)' },
     { value: '1048576', label: '1 MB' },
     { value: '10485760', label: '10 MB' },
     { value: '104857600', label: '100 MB' },
@@ -46,33 +58,87 @@ export function ExportForm({ form, repositoryVersions, isLoadingVersions }: Expo
 
   return (
     <div className="space-y-4">
-      <FormSelect<ExportFormData>
+      <FormField<ExportFormData>
         name="start_repository_version"
         label="Start Repository Version"
         description="The starting repository version to export"
-        options={versionOptions}
-        placeholder={isLoadingVersions ? 'Loading versions...' : 'Select start version'}
         required
-        disabled={form.formState.isSubmitting || isLoadingVersions}
-      />
+      >
+        {({ value, onChange }) => (
+          <Select
+            value={value == null || value === '' ? '' : String(value)}
+            onValueChange={onChange}
+            disabled={form.formState.isSubmitting || isLoadingVersions}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={isLoadingVersions ? 'Loading versions...' : 'Select start version'} />
+            </SelectTrigger>
+            <SelectContent>
+              {versionOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </FormField>
 
-      <FormSelect<ExportFormData>
+      <FormField<ExportFormData>
         name="end_repository_version"
         label="End Repository Version"
         description="The ending repository version (optional, exports single version if not specified)"
-        options={[{ value: '', label: 'None (single version)' }, ...versionOptions]}
-        placeholder={isLoadingVersions ? 'Loading versions...' : 'Select end version'}
-        disabled={form.formState.isSubmitting || isLoadingVersions}
-      />
+      >
+        {({ value, onChange }) => {
+          const stringValue = value == null || value === '' ? NONE_VALUE : String(value)
+          return (
+            <Select
+              value={stringValue}
+              onValueChange={(v) => onChange(v === NONE_VALUE ? '' : v)}
+              disabled={form.formState.isSubmitting || isLoadingVersions}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={isLoadingVersions ? 'Loading versions...' : 'Select end version'} />
+              </SelectTrigger>
+              <SelectContent>
+                {endVersionOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )
+        }}
+      </FormField>
 
-      <FormSelect<ExportFormData>
+      <FormField<ExportFormData>
         name="chunk_size"
         label="Chunk Size"
         description="Split the export into files of this size"
-        options={chunkSizeOptions}
-        placeholder="Select chunk size"
-        disabled={form.formState.isSubmitting}
-      />
+      >
+        {({ value, onChange }) => {
+          const stringValue = value == null || value === '' ? NONE_VALUE : String(value)
+          return (
+            <Select
+              value={stringValue}
+              onValueChange={(v) => onChange(v === NONE_VALUE ? '' : v)}
+              disabled={form.formState.isSubmitting}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select chunk size" />
+              </SelectTrigger>
+              <SelectContent>
+                {chunkSizeOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )
+        }}
+      </FormField>
     </div>
   )
 }

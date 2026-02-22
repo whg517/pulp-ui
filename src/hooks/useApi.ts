@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { pulpApi, PulpApiError } from '@/api/client'
 import type { PulpRepository, PulpRemote, PulpDistribution, PulpTask, PulpStatus, PulpPagination, PulpPublication, PulpRepositoryVersion, PulpUpload, PulpUser, PulpGroup, PulpWorker, PulpOrphan, PulpSigningService, PulpAccessPolicy, PulpDomain, PulpArtifact, PulpImport, PulpExport, PulpContentGuard, PulpCertGuard, PulpRBACGuard, PulpSchedule, PulpACS } from '@/types/pulp'
-import type { PulpRole, PulpPermission } from '@/types/rbac'
+import type { PulpRole, PulpPermission, PulpUserRole, PulpGroupRole } from '@/types/rbac'
 
 type QueryParams = Record<string, string | number | boolean | undefined>
 
@@ -890,10 +890,93 @@ export function useDeleteRole() {
 }
 
 // Permission hooks
-export function usePermissions(params?: QueryParams) {
+export function usePermissions(_params?: QueryParams) {
   return useQuery({
-    queryKey: ['permissions', params] as const,
-    queryFn: () => pulpApi.getPermissions(params) as Promise<PulpPagination<PulpPermission>>,
+    queryKey: ['permissions'] as const,
+    queryFn: () => pulpApi.getPermissions() as Promise<PulpPagination<PulpPermission>>,
+  })
+}
+
+// User Role Assignment hooks
+export function useUserRoles(params?: QueryParams) {
+  return useQuery({
+    queryKey: ['userRoles', params] as const,
+    queryFn: () => pulpApi.getUserRoles(params) as Promise<PulpPagination<PulpUserRole>>,
+    enabled: !!params?.user, // Only fetch when user is specified
+  })
+}
+
+export function useAssignRoleToUser() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { user: string; role: string }) => pulpApi.assignRoleToUser(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userRoles'] })
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      queryClient.invalidateQueries({ queryKey: ['roles'] })
+    },
+  })
+}
+
+export function useRevokeRoleFromUser() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (href: string) => pulpApi.revokeRoleFromUser(href),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userRoles'] })
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      queryClient.invalidateQueries({ queryKey: ['roles'] })
+    },
+  })
+}
+
+// Group Role Assignment hooks
+export function useGroupRoles(params?: QueryParams) {
+  return useQuery({
+    queryKey: ['groupRoles', params] as const,
+    queryFn: () => pulpApi.getGroupRoles(params) as Promise<PulpPagination<PulpGroupRole>>,
+    enabled: !!params?.group, // Only fetch when group is specified
+  })
+}
+
+export function useAssignRoleToGroup() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: { group: string; role: string }) => pulpApi.assignRoleToGroup(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['groupRoles'] })
+      queryClient.invalidateQueries({ queryKey: ['groups'] })
+      queryClient.invalidateQueries({ queryKey: ['roles'] })
+    },
+  })
+}
+
+export function useRevokeRoleFromGroup() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (href: string) => pulpApi.revokeRoleFromGroup(href),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['groupRoles'] })
+      queryClient.invalidateQueries({ queryKey: ['groups'] })
+      queryClient.invalidateQueries({ queryKey: ['roles'] })
+    },
+  })
+}
+
+// Role Assignment queries for specific roles
+export function useUserRolesForRole(roleHref: string, params?: QueryParams) {
+  return useQuery({
+    queryKey: ['userRoles', 'role', roleHref, params] as const,
+    queryFn: () => pulpApi.getUserRolesForRole(roleHref, params) as Promise<PulpPagination<PulpUserRole>>,
+    enabled: !!roleHref,
+  })
+}
+
+export function useGroupRolesForRole(roleHref: string, params?: QueryParams) {
+  return useQuery({
+    queryKey: ['groupRoles', 'role', roleHref, params] as const,
+    queryFn: () => pulpApi.getGroupRolesForRole(roleHref, params) as Promise<PulpPagination<PulpGroupRole>>,
+    enabled: !!roleHref,
   })
 }
 
@@ -958,6 +1041,42 @@ export function useRefreshACS() {
       queryClient.invalidateQueries({ queryKey: ['acs'] })
       queryClient.invalidateQueries({ queryKey: ['tasks'] })
     },
+  })
+}
+
+// Bulk Group Membership hooks
+export function useBulkAddUsersToGroup() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ groupHref, usernames }: { groupHref: string; usernames: string[] }) =>
+      pulpApi.bulkAddUsersToGroup(groupHref, usernames),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['groups'] })
+      queryClient.invalidateQueries({ queryKey: ['group'] })
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+    },
+  })
+}
+
+export function useBulkRemoveUsersFromGroup() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ groupHref, usernames }: { groupHref: string; usernames: string[] }) =>
+      pulpApi.bulkRemoveUsersFromGroup(groupHref, usernames),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['groups'] })
+      queryClient.invalidateQueries({ queryKey: ['group'] })
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+    },
+  })
+}
+
+// Role Assignment Counts hook
+export function useRoleAssignmentCounts(roleHref: string) {
+  return useQuery({
+    queryKey: ['roleAssignmentCounts', roleHref] as const,
+    queryFn: () => pulpApi.getRoleAssignmentCounts(roleHref),
+    enabled: !!roleHref,
   })
 }
 

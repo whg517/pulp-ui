@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Plus, Search, RefreshCw, Trash2, Edit } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -114,7 +115,14 @@ export function RemotesPage() {
               <TableBody>
                 {data?.results?.map((remote: PulpRemote) => (
                   <TableRow key={remote.pulp_href}>
-                    <TableCell className="font-medium">{remote.name}</TableCell>
+                    <TableCell>
+                      <Link
+                        to={`/remotes/${encodeURIComponent(remote.pulp_href)}`}
+                        className="font-medium hover:underline"
+                      >
+                        {remote.name}
+                      </Link>
+                    </TableCell>
                     <TableCell className="max-w-xs truncate text-muted-foreground">
                       {remote.url}
                     </TableCell>

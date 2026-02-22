@@ -1,4 +1,4 @@
-import { useForm } from 'react-hook-form'
+import { useForm, FormProvider } from 'react-hook-form'
 import type { UseFormReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -41,30 +41,32 @@ export function useAccessPolicyForm(defaultValues?: Partial<AccessPolicyFormData
 
 export function AccessPolicyForm({ form, viewsetName }: AccessPolicyFormProps) {
   return (
-    <div className="space-y-4">
-      {viewsetName && (
-        <div className="space-y-1">
-          <label className="text-sm font-medium">Viewset Name</label>
-          <p className="text-sm text-muted-foreground bg-muted p-2 rounded">{viewsetName}</p>
-        </div>
-      )}
+    <FormProvider {...form}>
+      <div className="space-y-4">
+        {viewsetName && (
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Viewset Name</label>
+            <p className="text-sm text-muted-foreground bg-muted p-2 rounded">{viewsetName}</p>
+          </div>
+        )}
 
-      <FormSwitch<AccessPolicyFormData>
-        name="customized"
-        label="Customized"
-        description="Whether this access policy has been customized from the default"
-        disabled={form.formState.isSubmitting}
-      />
+        <FormSwitch<AccessPolicyFormData>
+          name="customized"
+          label="Customized"
+          description="Whether this access policy has been customized from the default"
+          disabled={form.formState.isSubmitting}
+        />
 
-      <FormTextarea<AccessPolicyFormData>
-        name="statements_json"
-        label="Statements (JSON)"
-        placeholder='[{"action": ["list"], "effect": "allow", "principal": "authenticated"}]'
-        rows={8}
-        disabled={form.formState.isSubmitting}
-        description="Access policy statements in JSON format"
-      />
-    </div>
+        <FormTextarea<AccessPolicyFormData>
+          name="statements_json"
+          label="Statements (JSON)"
+          placeholder='[{"action": ["list"], "effect": "allow", "principal": "authenticated"}]'
+          rows={8}
+          disabled={form.formState.isSubmitting}
+          description="Access policy statements in JSON format"
+        />
+      </div>
+    </FormProvider>
   )
 }
 

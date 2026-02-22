@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, RefreshCw, ExternalLink } from 'lucide-react'
+import { Search, RefreshCw, ExternalLink, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -14,10 +14,31 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { useImports } from '@/hooks/useApi'
 import { ImportCreateDialog } from '@/components/imports'
+import { PulpApiError } from '@/api/client'
 import type { PulpImport } from '@/types/pulp'
 import { formatDistanceToNow } from 'date-fns'
+
+// Helper function to get user-friendly error message
+function getErrorMessage(error: unknown, resourceName: string): string {
+  if (error instanceof PulpApiError) {
+    switch (error.status) {
+      case 404:
+        return `${resourceName} API not available. This feature may require specific Pulp plugins.`
+      case 401:
+        return 'Authentication required. Please log in again.'
+      case 403:
+        return 'You do not have permission to access this resource.'
+      case 500:
+        return 'Server error. Please try again later.'
+      default:
+        return error.data.detail || `Failed to load ${resourceName.toLowerCase()} (${error.status})`
+    }
+  }
+  return `Failed to load ${resourceName.toLowerCase()}. Please try again.`
+}
 
 export function ImportsPage() {
   const [search, setSearch] = useState('')
@@ -66,7 +87,16 @@ export function ImportsPage() {
               ))}
             </div>
           ) : error ? (
-            <p className="text-center text-destructive py-8">Failed to load imports</p>
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error loading imports</AlertTitle>
+              <AlertDescription>
+                {getErrorMessage(error, 'Imports')}
+                <Button variant="outline" size="sm" onClick={() => refetch()} className="mt-2">
+                  Try Again
+                </Button>
+              </AlertDescription>
+            </Alert>
           ) : data?.results?.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
               {search ? 'No imports found matching your search' : 'No imports found'}

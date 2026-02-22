@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, RefreshCw, Eye, XCircle } from 'lucide-react'
+import { Search, RefreshCw, XCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -132,7 +132,14 @@ export function TasksPage() {
               <TableBody>
                 {data?.results?.map((task: PulpTask) => (
                   <TableRow key={task.pulp_href}>
-                    <TableCell className="font-medium">{task.name}</TableCell>
+                    <TableCell>
+                      <Link
+                        to={`/tasks/${encodeURIComponent(task.pulp_href)}`}
+                        className="font-medium hover:underline"
+                      >
+                        {task.name}
+                      </Link>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={stateColors[task.state] || 'secondary'}>
                         {task.state}
@@ -153,11 +160,6 @@ export function TasksPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Link to={`/tasks/${encodeURIComponent(task.pulp_href)}`}>
-                          <Button variant="ghost" size="icon" title="View details">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </Link>
                         {(task.state === 'running' || task.state === 'waiting') && (
                           <Button
                             variant="ghost"

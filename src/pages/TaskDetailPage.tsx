@@ -182,7 +182,11 @@ export function TaskDetailPage() {
               {task.error && (
                 <div>
                   <dt className="text-sm font-medium text-muted-foreground">Error</dt>
-                  <dd className="text-destructive whitespace-pre-wrap">{task.error}</dd>
+                  <dd className="text-destructive whitespace-pre-wrap">
+                    {typeof task.error === 'string'
+                      ? task.error
+                      : task.error.description || task.error.error_code || JSON.stringify(task.error, null, 2)}
+                  </dd>
                 </div>
               )}
             </dl>

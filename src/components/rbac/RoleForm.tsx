@@ -1,4 +1,4 @@
-import { useForm } from 'react-hook-form'
+import { useForm, FormProvider } from 'react-hook-form'
 import type { UseFormReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -30,23 +30,25 @@ export function useRoleForm(defaultValues?: Partial<RoleFormData>) {
 
 export function RoleForm({ form }: RoleFormProps) {
   return (
-    <div className="space-y-4">
-      <FormInput<RoleFormData>
-        name="name"
-        label="Name"
-        placeholder="Enter role name"
-        required
-        disabled={form.formState.isSubmitting}
-      />
+    <FormProvider {...form}>
+      <div className="space-y-4">
+        <FormInput<RoleFormData>
+          name="name"
+          label="Name"
+          placeholder="Enter role name"
+          required
+          disabled={form.formState.isSubmitting}
+        />
 
-      <FormTextarea<RoleFormData>
-        name="description"
-        label="Description"
-        placeholder="Enter role description (optional)"
-        rows={3}
-        disabled={form.formState.isSubmitting}
-      />
-    </div>
+        <FormTextarea<RoleFormData>
+          name="description"
+          label="Description"
+          placeholder="Enter role description (optional)"
+          rows={3}
+          disabled={form.formState.isSubmitting}
+        />
+      </div>
+    </FormProvider>
   )
 }
 

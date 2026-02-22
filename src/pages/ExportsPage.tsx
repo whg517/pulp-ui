@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, RefreshCw, ExternalLink, Download } from 'lucide-react'
+import { Search, RefreshCw, ExternalLink, Download, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import {
   Dialog,
   DialogContent,
@@ -23,8 +24,28 @@ import {
 } from '@/components/ui/dialog'
 import { useExports } from '@/hooks/useApi'
 import { ExportCreateDialog } from '@/components/exports'
+import { PulpApiError } from '@/api/client'
 import type { PulpExport } from '@/types/pulp'
 import { formatDistanceToNow } from 'date-fns'
+
+// Helper function to get user-friendly error message
+function getErrorMessage(error: unknown, resourceName: string): string {
+  if (error instanceof PulpApiError) {
+    switch (error.status) {
+      case 404:
+        return `${resourceName} API not available. This feature may require specific Pulp plugins.`
+      case 401:
+        return 'Authentication required. Please log in again.'
+      case 403:
+        return 'You do not have permission to access this resource.'
+      case 500:
+        return 'Server error. Please try again later.'
+      default:
+        return error.data.detail || `Failed to load ${resourceName.toLowerCase()} (${error.status})`
+    }
+  }
+  return `Failed to load ${resourceName.toLowerCase()}. Please try again.`
+}
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 Bytes'
@@ -92,7 +113,16 @@ export function ExportsPage() {
               ))}
             </div>
           ) : error ? (
-            <p className="text-center text-destructive py-8">Failed to load exports</p>
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Error loading exports</AlertTitle>
+              <AlertDescription>
+                {getErrorMessage(error, 'Exports')}
+                <Button variant="outline" size="sm" onClick={() => refetch()} className="mt-2">
+                  Try Again
+                </Button>
+              </AlertDescription>
+            </Alert>
           ) : data?.results?.length === 0 ? (
             <p className="text-center text-muted-foreground py-8">
               {search ? 'No exports found matching your search' : 'No exports found'}

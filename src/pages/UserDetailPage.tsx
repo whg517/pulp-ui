@@ -17,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { UserGroupsDialog, UserRolesDialog, EffectivePermissionsCard } from '@/components/rbac'
+import { UserGroupsDialog, UserRolesDialog, EffectivePermissionsCard, UserEditDialog } from '@/components/rbac'
 import type { PermissionSource } from '@/components/rbac/EffectivePermissionsCard'
 import type { PulpUserRole } from '@/types/rbac'
 
@@ -25,6 +25,7 @@ export function UserDetailPage() {
   const { href } = useParams<{ href: string }>()
   const decodedHref = href ? decodeURIComponent(href) : ''
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
   const [showGroupsDialog, setShowGroupsDialog] = useState(false)
   const [showRolesDialog, setShowRolesDialog] = useState(false)
 
@@ -131,7 +132,7 @@ export function UserDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setShowEditDialog(true)}>
             <Edit className="mr-2 h-4 w-4" />
             Edit
           </Button>
@@ -350,6 +351,13 @@ export function UserDetailPage() {
       <UserRolesDialog
         open={showRolesDialog}
         onOpenChange={setShowRolesDialog}
+        user={user}
+      />
+
+      {/* User Edit Dialog */}
+      <UserEditDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
         user={user}
       />
     </div>

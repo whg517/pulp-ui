@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Search, RefreshCw, Trash2, Plus, Pencil, Check, X, Eye, Lock } from 'lucide-react'
+import { Search, RefreshCw, Trash2, Plus, Pencil, Check, X, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -38,6 +38,7 @@ import {
 import { useUsers, useCreateUser, useUpdateUser, useDeleteUser, useUserRoles, useRoles, useAssignRoleToUser, useRevokeRoleFromUser } from '@/hooks/useApi'
 import type { PulpUser } from '@/types/pulp'
 import type { PulpRole, PulpUserRole } from '@/types/rbac'
+import { UserRoleCount } from '@/components/rbac'
 import { formatDistanceToNow } from 'date-fns'
 
 const userSchema = z.object({
@@ -282,15 +283,10 @@ export function UsersPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setManagingRolesUser(user)}
-                        className="h-7"
-                      >
-                        <Lock className="h-3 w-3 mr-1" />
-                        Manage
-                      </Button>
+                      <UserRoleCount
+                        userHref={user.pulp_href}
+                        onManage={() => setManagingRolesUser(user)}
+                      />
                     </TableCell>
                     <TableCell>
                       <Badge variant={user.is_active ? 'success' : 'secondary'}>
@@ -307,15 +303,6 @@ export function UsersPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Link to={`/users/${encodeURIComponent(user.pulp_href)}`}>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="View user details"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </Link>
                         <Button
                           variant="ghost"
                           size="icon"

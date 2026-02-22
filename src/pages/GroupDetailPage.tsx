@@ -17,7 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { GroupMembershipDialog, GroupRolesDialog, EffectivePermissionsCard } from '@/components/rbac'
+import { GroupMembershipDialog, GroupRolesDialog, EffectivePermissionsCard, GroupEditDialog } from '@/components/rbac'
 import type { PermissionSource } from '@/components/rbac/EffectivePermissionsCard'
 import type { PulpGroupRole } from '@/types/rbac'
 
@@ -25,6 +25,7 @@ export function GroupDetailPage() {
   const { href } = useParams<{ href: string }>()
   const decodedHref = href ? decodeURIComponent(href) : ''
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
   const [showMembershipDialog, setShowMembershipDialog] = useState(false)
   const [showRolesDialog, setShowRolesDialog] = useState(false)
 
@@ -131,7 +132,7 @@ export function GroupDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline">
+          <Button variant="outline" onClick={() => setShowEditDialog(true)}>
             <Edit className="mr-2 h-4 w-4" />
             Edit
           </Button>
@@ -312,6 +313,13 @@ export function GroupDetailPage() {
       <GroupRolesDialog
         open={showRolesDialog}
         onOpenChange={setShowRolesDialog}
+        group={group}
+      />
+
+      {/* Group Edit Dialog */}
+      <GroupEditDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
         group={group}
       />
     </div>

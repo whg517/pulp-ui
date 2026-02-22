@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Search, RefreshCw, Trash2, Plus, Pencil, Users } from 'lucide-react'
+import { Search, RefreshCw, Trash2, Plus, Pencil, Users, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -34,6 +35,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { useGroups, useCreateGroup, useUpdateGroup, useDeleteGroup } from '@/hooks/useApi'
 import type { PulpGroup } from '@/types/pulp'
+import { GroupRoleCount } from '@/components/rbac'
 
 const groupSchema = z.object({
   name: z.string().min(1, 'Name is required').min(2, 'Name must be at least 2 characters'),
@@ -162,7 +164,8 @@ export function GroupsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Users</TableHead>
+                  <TableHead>Members</TableHead>
+                  <TableHead>Roles</TableHead>
                   <TableHead>Model Permissions</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -170,15 +173,39 @@ export function GroupsPage() {
               <TableBody>
                 {data?.results?.map((group: PulpGroup) => (
                   <TableRow key={group.pulp_href}>
-                    <TableCell className="font-medium">{group.name}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Users className="h-4 w-4" />
-                        {group.users?.length || 0}
-                      </div>
+                    <TableCell>
+                      <Link
+                        to={`/groups/${encodeURIComponent(group.pulp_href)}`}
+                        className="font-medium hover:underline"
+                      >
+                        {group.name}
+                      </Link>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {group.model_permissions?.length || 0}
+                    <TableCell>
+                      {group.users && group.users.length > 0 ? (
+                        <div className="flex items-center gap-1">
+                          <Users className="h-4 w-4 text-muted-foreground" />
+                          <span>{group.users.length}</span>
+                          <span className="text-muted-foreground text-xs">
+                            ({group.users.slice(0, 2).join(', ')})
+                            {group.users.length > 2 && ` +${group.users.length - 2}`}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 text-muted-foreground">
+                          <Users className="h-4 w-4" />
+                          <span>0</span>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <GroupRoleCount groupHref={group.pulp_href} />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Lock className="h-4 w-4 text-muted-foreground" />
+                        <span>{group.model_permissions?.length || 0}</span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">

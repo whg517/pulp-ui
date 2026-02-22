@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Plus, Search, RefreshCw, Trash2, Edit, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,12 +28,14 @@ import { useDistributions, useDeleteDistribution } from '@/hooks/useApi'
 import type { PulpDistribution } from '@/types/pulp'
 import { formatDistanceToNow } from 'date-fns'
 import { DistributionEditDialog } from '@/components/distributions/DistributionEditDialog'
+import { DistributionCreateDialog } from '@/components/distributions/DistributionCreateDialog'
 
 export function DistributionsPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [distributionToDelete, setDistributionToDelete] = useState<PulpDistribution | null>(null)
   const [distributionToEdit, setDistributionToEdit] = useState<PulpDistribution | null>(null)
+  const [showCreateDialog, setShowCreateDialog] = useState(false)
   const pageSize = 10
 
   const { data, isLoading, error, refetch } = useDistributions({
@@ -62,7 +65,7 @@ export function DistributionsPage() {
           <h1 className="text-3xl font-bold">Distributions</h1>
           <p className="text-muted-foreground">Publish and serve your content</p>
         </div>
-        <Button>
+        <Button onClick={() => setShowCreateDialog(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Create Distribution
         </Button>
@@ -113,7 +116,14 @@ export function DistributionsPage() {
               <TableBody>
                 {data?.results?.map((dist: PulpDistribution) => (
                   <TableRow key={dist.pulp_href}>
-                    <TableCell className="font-medium">{dist.name}</TableCell>
+                    <TableCell>
+                      <Link
+                        to={`/distributions/${encodeURIComponent(dist.pulp_href)}`}
+                        className="font-medium hover:underline"
+                      >
+                        {dist.name}
+                      </Link>
+                    </TableCell>
                     <TableCell>
                       <code className="text-sm bg-muted px-1 rounded">{dist.base_path}</code>
                     </TableCell>
@@ -215,6 +225,12 @@ export function DistributionsPage() {
         open={!!distributionToEdit}
         onOpenChange={(open) => !open && setDistributionToEdit(null)}
         distribution={distributionToEdit}
+      />
+
+      {/* Create Distribution Dialog */}
+      <DistributionCreateDialog
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
       />
     </div>
   )
