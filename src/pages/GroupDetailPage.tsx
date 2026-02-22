@@ -1,12 +1,12 @@
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Users, Trash2, Edit } from 'lucide-react'
+import { ArrowLeft, Users, Trash2, Edit, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import { useGroup, useDeleteGroup } from '@/hooks/useApi'
+import { useGroup, useDeleteGroup, useGroupRoles, useRoles } from '@/hooks/useApi'
 import { formatDistanceToNow, format } from 'date-fns'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,14 +17,52 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { GroupMembershipDialog, GroupRolesDialog, EffectivePermissionsCard } from '@/components/rbac'
+import type { PermissionSource } from '@/components/rbac/EffectivePermissionsCard'
+import type { PulpGroupRole } from '@/types/rbac'
 
 export function GroupDetailPage() {
   const { href } = useParams<{ href: string }>()
   const decodedHref = href ? decodeURIComponent(href) : ''
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showMembershipDialog, setShowMembershipDialog] = useState(false)
+  const [showRolesDialog, setShowRolesDialog] = useState(false)
 
   const { data: group, isLoading, error } = useGroup(decodedHref)
+  const { data: groupRolesData } = useGroupRoles(
+    decodedHref ? { group: decodedHref, limit: 100 } : undefined
+  )
+  const { data: allRolesData } = useRoles({ limit: 100 })
   const deleteMutation = useDeleteGroup()
+
+  // Build permission sources for EffectivePermissionsCard
+  const permissionSources: PermissionSource[] = useMemo(() => {
+    if (!groupRolesData?.results || !allRolesData?.results) return []
+
+    const sources: PermissionSource[] = []
+
+    // Group role assignments by role
+    const roleMap = new Map(allRolesData.results.map(r => [r.pulp_href, r]))
+
+    // Add role assignments
+    const rolePermissions: string[] = []
+    groupRolesData.results.forEach((gr: PulpGroupRole) => {
+      const role = roleMap.get(gr.role)
+      if (role?.permissions) {
+        rolePermissions.push(...role.permissions)
+      }
+    })
+
+    if (rolePermissions.length > 0) {
+      sources.push({
+        type: 'role',
+        name: 'Assigned Roles',
+        permissions: [...new Set(rolePermissions)],
+      })
+    }
+
+    return sources
+  }, [groupRolesData, allRolesData])
 
   const handleDeleteConfirm = () => {
     if (group) {
@@ -63,6 +101,16 @@ export function GroupDetailPage() {
     )
   }
 
+  // Get role names for display
+  const assignedRoleNames: string[] = []
+  const roleMap = new Map(allRolesData?.results?.map(r => [r.pulp_href, r.name]) || [])
+  groupRolesData?.results?.forEach((gr: PulpGroupRole) => {
+    const roleName = roleMap.get(gr.role)
+    if (roleName) {
+      assignedRoleNames.push(roleName)
+    }
+  })
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -79,7 +127,7 @@ export function GroupDetailPage() {
           <Users className="h-8 w-8 text-muted-foreground" />
           <div>
             <h1 className="text-3xl font-bold">{group.name}</h1>
-            <p className="text-muted-foreground">{group.users.length} user(s)</p>
+            <p className="text-muted-foreground">{group.users?.length ?? 0} user(s)</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -108,10 +156,16 @@ export function GroupDetailPage() {
               <div>
                 <dt className="text-sm font-medium text-muted-foreground">Created</dt>
                 <dd>
-                  {format(new Date(group.pulp_created), 'PPpp')}
-                  <span className="text-muted-foreground ml-2">
-                    ({formatDistanceToNow(new Date(group.pulp_created), { addSuffix: true })})
-                  </span>
+                  {group.pulp_created ? (
+                    <>
+                      {format(new Date(group.pulp_created), 'PPpp')}
+                      <span className="text-muted-foreground ml-2">
+                        ({formatDistanceToNow(new Date(group.pulp_created), { addSuffix: true })})
+                      </span>
+                    </>
+                  ) : (
+                    'Unknown'
+                  )}
                 </dd>
               </div>
             </dl>
@@ -119,12 +173,18 @@ export function GroupDetailPage() {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Users</CardTitle>
-            <CardDescription>Users in this group</CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Users</CardTitle>
+              <CardDescription>Users in this group</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setShowMembershipDialog(true)}>
+              <Users className="h-4 w-4 mr-2" />
+              Manage Members
+            </Button>
           </CardHeader>
           <CardContent>
-            {group.users.length === 0 ? (
+            {!group.users || group.users.length === 0 ? (
               <p className="text-center text-muted-foreground py-4">No users in this group</p>
             ) : (
               <div className="flex flex-wrap gap-2">
@@ -138,13 +198,51 @@ export function GroupDetailPage() {
           </CardContent>
         </Card>
 
-        {group.model_permissions.length > 0 && (
-          <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle>Model Permissions</CardTitle>
-              <CardDescription>Permissions granted to this group</CardDescription>
-            </CardHeader>
-            <CardContent>
+        {/* Roles Card with Management */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="h-4 w-4" />
+                Roles
+              </CardTitle>
+              <CardDescription>
+                {assignedRoleNames.length} role(s) assigned to this group
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setShowRolesDialog(true)}>
+              Manage Roles
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {assignedRoleNames.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4 text-sm">
+                No roles assigned to this group
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {assignedRoleNames.map((roleName) => (
+                  <Badge key={roleName} variant="secondary">
+                    {roleName}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Model Permissions Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Model Permissions</CardTitle>
+            <CardDescription>Direct model-level permissions for this group</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!group.model_permissions || group.model_permissions.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4 text-sm">
+                No model permissions assigned
+              </p>
+            ) : (
               <div className="flex flex-wrap gap-2">
                 {group.model_permissions.map((perm, i) => (
                   <Badge key={i} variant="outline">
@@ -152,11 +250,17 @@ export function GroupDetailPage() {
                   </Badge>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        )}
+            )}
+          </CardContent>
+        </Card>
 
-        {group.object_permissions.length > 0 && (
+        {/* Effective Permissions Card */}
+        <div className="md:col-span-2">
+          <EffectivePermissionsCard sources={permissionSources} />
+        </div>
+
+        {/* Object Permissions Card */}
+        {group.object_permissions && group.object_permissions.length > 0 && (
           <Card className="md:col-span-2">
             <CardHeader>
               <CardTitle>Object Permissions</CardTitle>
@@ -196,6 +300,20 @@ export function GroupDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Group Membership Dialog */}
+      <GroupMembershipDialog
+        open={showMembershipDialog}
+        onOpenChange={setShowMembershipDialog}
+        group={group}
+      />
+
+      {/* Group Roles Dialog */}
+      <GroupRolesDialog
+        open={showRolesDialog}
+        onOpenChange={setShowRolesDialog}
+        group={group}
+      />
     </div>
   )
 }

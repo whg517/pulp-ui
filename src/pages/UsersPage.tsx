@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Search, RefreshCw, Trash2, Plus, Pencil, Check, X } from 'lucide-react'
+import { Search, RefreshCw, Trash2, Plus, Pencil, Check, X, Eye, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -19,6 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -33,8 +35,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from '@/hooks/useApi'
+import { useUsers, useCreateUser, useUpdateUser, useDeleteUser, useUserRoles, useRoles, useAssignRoleToUser, useRevokeRoleFromUser } from '@/hooks/useApi'
 import type { PulpUser } from '@/types/pulp'
+import type { PulpRole, PulpUserRole } from '@/types/rbac'
 import { formatDistanceToNow } from 'date-fns'
 
 const userSchema = z.object({
@@ -60,6 +63,10 @@ export function UsersPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<PulpUser | null>(null)
   const [userToDelete, setUserToDelete] = useState<PulpUser | null>(null)
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [editError, setEditError] = useState<string | null>(null)
+  const [managingRolesUser, setManagingRolesUser] = useState<PulpUser | null>(null)
+  const [roleSearch, setRoleSearch] = useState('')
   const pageSize = 10
 
   const createForm = useForm<UserFormData>({
@@ -99,6 +106,14 @@ export function UsersPage() {
   const updateMutation = useUpdateUser()
   const deleteMutation = useDeleteUser()
 
+  // Role management hooks
+  const { data: allRolesData } = useRoles({ limit: 100, name__contains: roleSearch || undefined })
+  const { data: userRolesData, refetch: refetchUserRoles } = useUserRoles(
+    managingRolesUser ? { user: managingRolesUser.pulp_href, limit: 100 } : undefined
+  )
+  const assignRoleMutation = useAssignRoleToUser()
+  const revokeRoleMutation = useRevokeRoleFromUser()
+
   const handleCreate = () => {
     createForm.reset({
       username: '',
@@ -109,10 +124,12 @@ export function UsersPage() {
       is_staff: false,
       password: '',
     })
+    setCreateError(null)
     setIsCreateOpen(true)
   }
 
   const handleEdit = (user: PulpUser) => {
+    setEditError(null)
     setEditingUser(user)
     editForm.reset({
       username: user.username,
@@ -136,16 +153,21 @@ export function UsersPage() {
   }
 
   const submitCreate = (data: UserFormData) => {
+    setCreateError(null)
     createMutation.mutate(data, {
       onSuccess: () => {
         setIsCreateOpen(false)
         createForm.reset()
+      },
+      onError: (error: Error) => {
+        setCreateError(error.message || 'Failed to create user')
       },
     })
   }
 
   const submitEdit = (data: UserEditFormData) => {
     if (editingUser) {
+      setEditError(null)
       const updateData = { ...data }
       if (!updateData.password) {
         delete (updateData as Record<string, unknown>).password
@@ -155,6 +177,9 @@ export function UsersPage() {
         {
           onSuccess: () => {
             setEditingUser(null)
+          },
+          onError: (error: Error) => {
+            setEditError(error.message || 'Failed to update user')
           },
         }
       )
@@ -212,6 +237,8 @@ export function UsersPage() {
                 <TableRow>
                   <TableHead>Username</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Groups</TableHead>
+                  <TableHead>Roles</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Staff</TableHead>
                   <TableHead>Last Login</TableHead>
@@ -221,8 +248,50 @@ export function UsersPage() {
               <TableBody>
                 {data?.results?.map((user: PulpUser) => (
                   <TableRow key={user.pulp_href}>
-                    <TableCell className="font-medium">{user.username}</TableCell>
+                    <TableCell className="font-medium">
+                      <Link
+                        to={`/users/${encodeURIComponent(user.pulp_href)}`}
+                        className="hover:underline"
+                      >
+                        {user.username}
+                      </Link>
+                    </TableCell>
                     <TableCell className="text-muted-foreground">{user.email || '-'}</TableCell>
+                    <TableCell>
+                      {user.groups && user.groups.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {user.groups.slice(0, 2).map((group, i) => (
+                            <Link
+                              key={i}
+                              to={`/groups/${encodeURIComponent(typeof group === 'string' ? group : group)}`}
+                              className="hover:opacity-80"
+                            >
+                              <Badge variant="secondary" className="text-xs">
+                                {typeof group === 'string' ? group.split('/').filter(Boolean).pop() || group : group}
+                              </Badge>
+                            </Link>
+                          ))}
+                          {user.groups.length > 2 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{user.groups.length - 2}
+                            </Badge>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setManagingRolesUser(user)}
+                        className="h-7"
+                      >
+                        <Lock className="h-3 w-3 mr-1" />
+                        Manage
+                      </Button>
+                    </TableCell>
                     <TableCell>
                       <Badge variant={user.is_active ? 'success' : 'secondary'}>
                         {user.is_active ? 'Active' : 'Inactive'}
@@ -238,6 +307,15 @@ export function UsersPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
+                        <Link to={`/users/${encodeURIComponent(user.pulp_href)}`}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="View user details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </Link>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -292,11 +370,22 @@ export function UsersPage() {
       </Card>
 
       {/* Create User Dialog */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+      <Dialog open={isCreateOpen} onOpenChange={(open) => {
+        setIsCreateOpen(open)
+        if (!open) setCreateError(null)
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create User</DialogTitle>
+            <DialogDescription>
+              Create a new user account with the specified credentials.
+            </DialogDescription>
           </DialogHeader>
+          {createError && (
+            <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
+              {createError}
+            </div>
+          )}
           <form onSubmit={createForm.handleSubmit(submitCreate)} className="space-y-4 py-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Username *</label>
@@ -357,11 +446,24 @@ export function UsersPage() {
       </Dialog>
 
       {/* Edit User Dialog */}
-      <Dialog open={!!editingUser} onOpenChange={() => setEditingUser(null)}>
+      <Dialog open={!!editingUser} onOpenChange={(open) => {
+        if (!open) {
+          setEditingUser(null)
+          setEditError(null)
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>
+              Modify the user account details.
+            </DialogDescription>
           </DialogHeader>
+          {editError && (
+            <div className="bg-destructive/10 text-destructive text-sm p-3 rounded-md">
+              {editError}
+            </div>
+          )}
           <form onSubmit={editForm.handleSubmit(submitEdit)} className="space-y-4 py-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Username *</label>
@@ -427,7 +529,7 @@ export function UsersPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete User</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete user "{userToDelete?.username}"?
+              Are you sure you want to delete user &quot;{userToDelete?.username}&quot;?
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -442,6 +544,142 @@ export function UsersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Manage User Roles Dialog */}
+      <Dialog open={!!managingRolesUser} onOpenChange={(open) => {
+        if (!open) {
+          setManagingRolesUser(null)
+          setRoleSearch('')
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5" />
+              Manage User Roles
+            </DialogTitle>
+            <DialogDescription>
+              Assign or revoke roles for &quot;{managingRolesUser?.username}&quot;
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search roles..."
+                value={roleSearch}
+                onChange={(e) => setRoleSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+
+            {/* Current Roles */}
+            <div className="flex-shrink-0">
+              <h3 className="text-sm font-medium mb-2">
+                Assigned Roles ({userRolesData?.results?.length || 0})
+              </h3>
+              <div className="h-28 border rounded-md overflow-y-auto">
+                {!userRolesData?.results || userRolesData.results.length === 0 ? (
+                  <div className="p-4 text-center text-muted-foreground text-sm">
+                    No roles assigned directly
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {userRolesData.results.map((ur: PulpUserRole) => {
+                      const role = allRolesData?.results?.find((r: PulpRole) => r.pulp_href === ur.role)
+                      return (
+                        <div
+                          key={ur.pulp_href}
+                          className="flex items-center justify-between p-2 hover:bg-muted/50"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{role?.name || ur.role.split('/').filter(Boolean).pop()}</span>
+                            {role?.locked && (
+                              <Badge variant="outline" className="text-xs">Locked</Badge>
+                            )}
+                            {role?.permissions && (
+                              <span className="text-muted-foreground text-sm">
+                                ({role.permissions.length} permissions)
+                              </span>
+                            )}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              revokeRoleMutation.mutate(ur.pulp_href, {
+                                onSuccess: () => refetchUserRoles()
+                              })
+                            }}
+                            disabled={revokeRoleMutation.isPending || role?.locked}
+                            title={role?.locked ? 'Cannot revoke locked role' : 'Revoke role'}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Available Roles */}
+            <div className="flex-1 min-h-0">
+              <h3 className="text-sm font-medium mb-2">
+                Available Roles
+              </h3>
+              <div className="h-full max-h-40 border rounded-md overflow-y-auto">
+                {(() => {
+                  const currentRoleHrefs = new Set(userRolesData?.results?.map((ur: PulpUserRole) => ur.role) || [])
+                  const availableRoles = allRolesData?.results?.filter((r: PulpRole) => !currentRoleHrefs.has(r.pulp_href)) || []
+                  return availableRoles.length === 0 ? (
+                    <div className="p-4 text-center text-muted-foreground text-sm">
+                      {roleSearch ? 'No roles found' : 'All roles are already assigned'}
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {availableRoles.map((role: PulpRole) => (
+                        <div
+                          key={role.pulp_href}
+                          className="flex items-center justify-between p-2 hover:bg-muted/50"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{role.name}</span>
+                            {role.locked && (
+                              <Badge variant="outline" className="text-xs">Locked</Badge>
+                            )}
+                            <span className="text-muted-foreground text-sm">
+                              ({role.permissions?.length || 0} permissions)
+                            </span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              if (managingRolesUser) {
+                                assignRoleMutation.mutate(
+                                  { user: managingRolesUser.pulp_href, role: role.pulp_href },
+                                  { onSuccess: () => refetchUserRoles() }
+                                )
+                              }
+                            }}
+                            disabled={assignRoleMutation.isPending}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

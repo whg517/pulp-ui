@@ -1,12 +1,12 @@
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, UserCircle, Trash2, Edit } from 'lucide-react'
+import { ArrowLeft, UserCircle, Trash2, Edit, Users, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
-import { useUser, useDeleteUser } from '@/hooks/useApi'
+import { useUser, useDeleteUser, useUserRoles, useRoles } from '@/hooks/useApi'
 import { formatDistanceToNow, format } from 'date-fns'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,14 +17,52 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { UserGroupsDialog, UserRolesDialog, EffectivePermissionsCard } from '@/components/rbac'
+import type { PermissionSource } from '@/components/rbac/EffectivePermissionsCard'
+import type { PulpUserRole } from '@/types/rbac'
 
 export function UserDetailPage() {
   const { href } = useParams<{ href: string }>()
   const decodedHref = href ? decodeURIComponent(href) : ''
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showGroupsDialog, setShowGroupsDialog] = useState(false)
+  const [showRolesDialog, setShowRolesDialog] = useState(false)
 
   const { data: user, isLoading, error } = useUser(decodedHref)
+  const { data: userRolesData } = useUserRoles(
+    decodedHref ? { user: decodedHref, limit: 100 } : undefined
+  )
+  const { data: allRolesData } = useRoles({ limit: 100 })
   const deleteMutation = useDeleteUser()
+
+  // Build permission sources for EffectivePermissionsCard
+  const permissionSources: PermissionSource[] = useMemo(() => {
+    if (!userRolesData?.results || !allRolesData?.results) return []
+
+    const sources: PermissionSource[] = []
+
+    // Group role assignments by role
+    const roleMap = new Map(allRolesData.results.map(r => [r.pulp_href, r]))
+
+    // Add direct role assignments
+    const directPermissions: string[] = []
+    userRolesData.results.forEach((ur: PulpUserRole) => {
+      const role = roleMap.get(ur.role)
+      if (role?.permissions) {
+        directPermissions.push(...role.permissions)
+      }
+    })
+
+    if (directPermissions.length > 0) {
+      sources.push({
+        type: 'role',
+        name: 'Direct Role Assignments',
+        permissions: [...new Set(directPermissions)],
+      })
+    }
+
+    return sources
+  }, [userRolesData, allRolesData])
 
   const handleDeleteConfirm = () => {
     if (user) {
@@ -62,6 +100,16 @@ export function UserDetailPage() {
       </div>
     )
   }
+
+  // Get role names for display
+  const assignedRoleNames: string[] = []
+  const roleMap = new Map(allRolesData?.results?.map(r => [r.pulp_href, r.name]) || [])
+  userRolesData?.results?.forEach((ur: PulpUserRole) => {
+    const roleName = roleMap.get(ur.role)
+    if (roleName) {
+      assignedRoleNames.push(roleName)
+    }
+  })
 
   return (
     <div className="space-y-6">
@@ -123,7 +171,7 @@ export function UserDetailPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Permissions</CardTitle>
+            <CardTitle>Status</CardTitle>
           </CardHeader>
           <CardContent>
             <dl className="space-y-4">
@@ -175,32 +223,98 @@ export function UserDetailPage() {
               <div>
                 <dt className="text-sm font-medium text-muted-foreground">Created</dt>
                 <dd>
-                  {format(new Date(user.pulp_created), 'PPpp')}
-                  <span className="text-muted-foreground ml-2">
-                    ({formatDistanceToNow(new Date(user.pulp_created), { addSuffix: true })})
-                  </span>
+                  {user.pulp_created ? (
+                    <>
+                      {format(new Date(user.pulp_created), 'PPpp')}
+                      <span className="text-muted-foreground ml-2">
+                        ({formatDistanceToNow(new Date(user.pulp_created), { addSuffix: true })})
+                      </span>
+                    </>
+                  ) : (
+                    'Unknown'
+                  )}
                 </dd>
               </div>
             </dl>
           </CardContent>
         </Card>
 
-        {user.groups.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Groups</CardTitle>
-            </CardHeader>
-            <CardContent>
+        {/* Groups Card with Management */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Groups
+              </CardTitle>
+              <CardDescription>
+                {user.groups?.length ?? 0} group(s)
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setShowGroupsDialog(true)}>
+              Manage Groups
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {!user.groups || user.groups.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4 text-sm">
+                User is not in any groups
+              </p>
+            ) : (
               <div className="flex flex-wrap gap-2">
                 {user.groups.map((group, i) => (
-                  <Badge key={i} variant="secondary">
-                    {group}
+                  <Link
+                    key={i}
+                    to={`/groups/${encodeURIComponent(typeof group === 'string' ? group : group)}`}
+                    className="hover:opacity-80"
+                  >
+                    <Badge variant="secondary">
+                      {typeof group === 'string' ? group.split('/').filter(Boolean).pop() || group : group}
+                    </Badge>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Roles Card with Management */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="h-4 w-4" />
+                Roles
+              </CardTitle>
+              <CardDescription>
+                {assignedRoleNames.length} role(s) assigned directly
+              </CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setShowRolesDialog(true)}>
+              Manage Roles
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {assignedRoleNames.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4 text-sm">
+                No roles assigned directly
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {assignedRoleNames.map((roleName) => (
+                  <Badge key={roleName} variant="secondary">
+                    {roleName}
                   </Badge>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        )}
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Effective Permissions Card */}
+        <div className="md:col-span-2">
+          <EffectivePermissionsCard sources={permissionSources} />
+        </div>
       </div>
 
       {/* Delete Confirmation Dialog */}
@@ -224,6 +338,20 @@ export function UserDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* User Groups Dialog */}
+      <UserGroupsDialog
+        open={showGroupsDialog}
+        onOpenChange={setShowGroupsDialog}
+        user={user}
+      />
+
+      {/* User Roles Dialog */}
+      <UserRolesDialog
+        open={showRolesDialog}
+        onOpenChange={setShowRolesDialog}
+        user={user}
+      />
     </div>
   )
 }
