@@ -1,6 +1,6 @@
 import type { APIRequestContext } from '@playwright/test'
-import type { PulpTask } from '../../src/types/pulp'
-import { getBasicAuthHeader, TEST_CREDENTIALS } from './auth'
+import type { PulpTask } from '../../src/types/pulp.js'
+import { getBasicAuthHeader, TEST_CREDENTIALS } from './auth.js'
 
 /**
  * Custom error class for Pulp API errors

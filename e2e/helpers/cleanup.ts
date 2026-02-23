@@ -1,5 +1,5 @@
-import type { PulpAPIClient } from './api'
-import { PulpAPIError } from './api'
+import type { PulpAPIClient } from './api.js'
+import { PulpAPIError } from './api.js'
 
 type EntityType = 'distribution' | 'remote' | 'repository'
 

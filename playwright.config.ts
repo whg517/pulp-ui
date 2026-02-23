@@ -1,13 +1,10 @@
 import { defineConfig, devices } from '@playwright/test'
-import { fileURLToPath } from 'url'
+import { fileURLToPath } from 'node:url'
 
-// Containerized mode: Run tests against containerized UI service
-// Set E2E_CONTAINERIZED=true to enable
 const isContainerized = process.env.E2E_CONTAINERIZED === 'true'
 
-// Base URL: Use containerized UI service or local dev server
 const baseURL = isContainerized
-  ? (process.env.PLAYWRIGHT_BASE_URL || 'http://ui:5173')
+  ? process.env.PLAYWRIGHT_BASE_URL || 'http://ui:5173'
   : 'http://localhost:5174'
 
 export default defineConfig({
@@ -19,12 +16,10 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
-  globalSetup: fileURLToPath(new URL('./e2e/globalSetup.ts', import.meta.url)),
-  globalTeardown: fileURLToPath(new URL('./e2e/globalTeardown.ts', import.meta.url)),
+  globalSetup: fileURLToPath(new URL('./e2e/global-setup.ts', import.meta.url)),
+  globalTeardown: fileURLToPath(new URL('./e2e/global-teardown.ts', import.meta.url)),
   use: {
     baseURL,
-    // Note: storageState is NOT set globally to allow login tests to work
-    // Tests that need authentication should use the authenticatedPage fixture
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -33,7 +28,6 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
-    // Only run firefox and webkit in local development for faster CI
     ...(process.env.CI
       ? []
       : [
@@ -47,8 +41,6 @@ export default defineConfig({
           },
         ]),
   ],
-  // In containerized mode, the UI service is managed by docker-compose
-  // In local mode, start the dev server via webServer
   ...(isContainerized
     ? {}
     : {
@@ -56,7 +48,7 @@ export default defineConfig({
           command: 'E2E_TEST=1 bun dev',
           url: 'http://localhost:5174',
           reuseExistingServer: !process.env.CI,
-          timeout: 120 * 1000,
+          timeout: 120_000,
         },
       }),
 })

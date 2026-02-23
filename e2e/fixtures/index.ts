@@ -1,40 +1,28 @@
 import { test as base, type Page } from '@playwright/test'
-import { PulpAPIClient, createAPIClient } from './helpers/api'
-import { createRepository, createRemote, createDistribution } from './helpers/factories'
-import { cleanupManager, CleanupManager } from './helpers/cleanup'
-import type { PulpRepository, PulpRemote, PulpDistribution } from '../src/types/pulp'
+import { PulpAPIClient, createAPIClient } from '../helpers/api.js'
+import { createRepository, createRemote, createDistribution } from '../helpers/factories.js'
+import { cleanupManager, CleanupManager } from '../helpers/cleanup.js'
+import { PageObjects } from '../pages/index.js'
+import type { PulpRepository, PulpRemote, PulpDistribution } from '../../src/types/pulp.js'
 
-/**
- * TestFactory wraps factory functions with auto-registration for cleanup.
- * Entities created through this class are automatically tracked for cleanup.
- */
 export class TestFactory {
   constructor(
     private readonly api: PulpAPIClient,
     private readonly cleanup: CleanupManager
   ) {}
 
-  /**
-   * Create a repository and register it for cleanup
-   */
   async createRepository(overrides?: Partial<PulpRepository>): Promise<PulpRepository> {
     const repo = await createRepository(this.api, overrides)
     this.cleanup.register('repository', repo.pulp_href)
     return repo
   }
 
-  /**
-   * Create a remote and register it for cleanup
-   */
   async createRemote(overrides?: Partial<PulpRemote>): Promise<PulpRemote> {
     const remote = await createRemote(this.api, overrides)
     this.cleanup.register('remote', remote.pulp_href)
     return remote
   }
 
-  /**
-   * Create a distribution and register it for cleanup
-   */
   async createDistribution(overrides?: Partial<PulpDistribution>): Promise<PulpDistribution> {
     const dist = await createDistribution(this.api, overrides)
     this.cleanup.register('distribution', dist.pulp_href)
@@ -42,18 +30,16 @@ export class TestFactory {
   }
 }
 
-/**
- * Custom fixtures for Pulp E2E tests
- */
+// Generate unique prefix for each test to avoid parallel execution conflicts
+const getTestPrefix = () => `t${Date.now()}-${Math.random().toString(36).substring(2, 6)}`
+
 export const test = base.extend<{
-  /** Pulp API client for making REST API requests */
   api: PulpAPIClient
-  /** Test factory for creating entities with auto-cleanup */
   factory: TestFactory
-  /** Cleanup manager for tracking and deleting test entities */
   cleanup: CleanupManager
-  /** Pre-authenticated page (logs in via UI before test) */
   authenticatedPage: Page
+  pageObjects: PageObjects
+  testPrefix: string
 }>({
   api: async ({ request }, use) => {
     const client = createAPIClient(request)
@@ -61,7 +47,11 @@ export const test = base.extend<{
     await use(client)
   },
 
-  factory: async ({ api }, use) => {
+  testPrefix: async ({}, use) => {
+    await use(getTestPrefix())
+  },
+
+  factory: async ({ api, testPrefix }, use) => {
     const factory = new TestFactory(api, cleanupManager)
     await use(factory)
   },
@@ -72,15 +62,10 @@ export const test = base.extend<{
   },
 
   authenticatedPage: async ({ page }, use) => {
-    // Load the storage state (auth localStorage) created by globalSetup
-    // This is needed because we don't set storageState globally in playwright.config.ts
-    // to allow login tests to work without being already authenticated
     const storageStatePath = '.auth/admin.json'
-    // Load and apply the storage state via addInitScript to set it BEFORE page loads
     const fs = await import('fs')
     const storageState = JSON.parse(fs.readFileSync(storageStatePath, 'utf-8'))
 
-    // Build localStorage object for injection
     const localStorageItems: { name: string; value: string }[] = []
     for (const origin of storageState.origins || []) {
       for (const item of origin.localStorage || []) {
@@ -88,18 +73,20 @@ export const test = base.extend<{
       }
     }
 
-    // Add init script to set localStorage before page loads
     await page.addInitScript((items) => {
       for (const { name, value } of items) {
         localStorage.setItem(name, value)
       }
     }, localStorageItems)
 
-    // Now navigate to the app - auth state will already be set
     await page.goto('/')
-    // Wait for the dashboard to load (indicates auth is working)
     await page.waitForSelector('h1:has-text("Dashboard")', { timeout: 10000 })
     await use(page)
+  },
+
+  pageObjects: async ({ authenticatedPage }, use) => {
+    const pages = new PageObjects(authenticatedPage)
+    await use(pages)
   },
 })
 

@@ -1,4 +1,4 @@
-import { test, expect } from './fixtures'
+import { test, expect } from './fixtures/index.js'
 
 test.describe('Signing Services Flow', () => {
   test('displays signing services list page', async ({ authenticatedPage }) => {
@@ -12,16 +12,13 @@ test.describe('Signing Services Flow', () => {
     await authenticatedPage.goto('/signing-services')
 
     await expect(authenticatedPage.getByRole('heading', { name: 'Signing Services' })).toBeVisible()
-    
-    await authenticatedPage.waitForTimeout(2000)
-    
-    const pageContent = await authenticatedPage.content()
-    const hasContent = pageContent.includes('No signing services') ||
-                       pageContent.includes('Failed to load') ||
-                       pageContent.includes('signing-service-') ||
-                       pageContent.includes('Fingerprint')
-    
-    expect(hasContent).toBe(true)
+
+    // Wait for content to appear - use proper assertions instead of timeout
+    const noServices = authenticatedPage.getByText('No signing services')
+    const failedToLoad = authenticatedPage.getByText('Failed to load')
+    const serviceContent = authenticatedPage.locator('text=/signing-service-|Fingerprint/')
+
+    await expect(noServices.or(failedToLoad).or(serviceContent)).toBeVisible({ timeout: 10000 })
   })
 
   test('shows error state when API fails', async ({ authenticatedPage }) => {

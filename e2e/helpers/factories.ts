@@ -1,17 +1,19 @@
-import type { PulpRepository, PulpRemote, PulpDistribution } from '../../src/types/pulp'
-import type { PulpAPIClient } from './api'
+import type { PulpRepository, PulpRemote, PulpDistribution } from '../../src/types/pulp.js'
+import type { PulpAPIClient } from './api.js'
 
 // Module-level counters for unique name generation
 let repositoryCounter = 0
 let remoteCounter = 0
 let distributionCounter = 0
+let artifactCounter = 0
 
 /**
  * Generate a unique name for test entities
- * Format: test-{entityType}-{timestamp}-{counter}
+ * Format: test-{entityType}-{timestamp}-{counter}-{random}
  */
 function generateUniqueName(entityType: string, counter: number): string {
-  return `test-${entityType}-${Date.now()}-${counter}`
+  const random = Math.random().toString(36).substring(2, 8)
+  return `test-${entityType}-${Date.now()}-${counter}-${random}`
 }
 
 /**
