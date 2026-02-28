@@ -485,7 +485,7 @@ export function useWorker(href: string) {
 export function useOrphans(params?: QueryParams) {
   return useQuery({
     queryKey: queryKeys.orphans(params),
-    queryFn: () => pulpApi.getOrphans(params) as Promise<PulpPagination<PulpOrphan>>,
+    queryFn: () => pulpApi.getOrphans() as Promise<PulpPagination<PulpOrphan>>,
   })
 }
 
@@ -890,9 +890,9 @@ export function useDeleteRole() {
 }
 
 // Permission hooks
-export function usePermissions(_params?: QueryParams) {
+export function usePermissions(params?: QueryParams) {
   return useQuery({
-    queryKey: ['permissions'] as const,
+    queryKey: ['permissions', params] as const,
     queryFn: () => pulpApi.getPermissions() as Promise<PulpPagination<PulpPermission>>,
   })
 }
@@ -909,7 +909,7 @@ export function useUserRoles(params?: QueryParams) {
 export function useAssignRoleToUser() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (data: { user: string; role: string }) => pulpApi.assignRoleToUser(data),
+    mutationFn: (data: { user: string; role: string; content_object?: string }) => pulpApi.assignRoleToUser(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['userRoles'] })
       queryClient.invalidateQueries({ queryKey: ['users'] })
@@ -942,7 +942,7 @@ export function useGroupRoles(params?: QueryParams) {
 export function useAssignRoleToGroup() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (data: { group: string; role: string }) => pulpApi.assignRoleToGroup(data),
+    mutationFn: (data: { group: string; role: string; content_object?: string }) => pulpApi.assignRoleToGroup(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['groupRoles'] })
       queryClient.invalidateQueries({ queryKey: ['groups'] })

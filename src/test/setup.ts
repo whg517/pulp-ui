@@ -1,53 +1,17 @@
-/// <reference types="vitest/globals" />
-import '@testing-library/jest-dom'
-import { vi } from 'vitest'
-import { cleanup } from '@testing-library/react'
+// src/test/setup.ts
 import { server } from './mocks/server'
+import '@testing-library/jest-dom'
+import { TextEncoder, TextDecoder } from 'util'
 
-// Set up jsdom environment with proper location
-if (typeof window !== 'undefined') {
-  // Ensure window.location.origin is set for API URL building
-  if (!window.location.origin) {
-    Object.defineProperty(window, 'location', {
-      value: {
-        ...window.location,
-        origin: 'http://localhost',
-        href: 'http://localhost/',
-        host: 'localhost',
-        hostname: 'localhost',
-        protocol: 'http:',
-        port: '',
-      },
-      writable: true,
-    })
-  }
-}
-
-// Cleanup after each test
-afterEach(() => {
-  cleanup()
-})
-
-// Setup MSW for API mocking
-beforeAll(() => {
-  server.listen({ onUnhandledRequest: 'error' })
-})
-
-afterEach(() => {
-  server.resetHandlers()
-})
-
-afterAll(() => {
-  server.close()
-})
-
-// Mock localStorage
 const localStorageMock = (() => {
   let store: Record<string, string> = {}
+  
   return {
-    getItem: vi.fn((key: string) => store[key] || null),
+    getItem: vi.fn((key: string) => {
+      return store[key] || null
+    }),
     setItem: vi.fn((key: string, value: string) => {
-      store[key] = value
+      store[key] = value.toString()
     }),
     removeItem: vi.fn((key: string) => {
       delete store[key]
@@ -55,42 +19,66 @@ const localStorageMock = (() => {
     clear: vi.fn(() => {
       store = {}
     }),
-    get length() {
-      return Object.keys(store).length
-    },
-    key: vi.fn((index: number) => Object.keys(store)[index] || null),
+    getAll: vi.fn(() => {
+      return store
+    }),
   }
 })()
 
+
 Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
+  writable: true,
 })
 
-// Mock ResizeObserver
-;(globalThis as unknown as { ResizeObserver: unknown }).ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}))
+// Mock window.location for URL building
+Object.defineProperty(window, 'location', {
+  value: {
+    origin: 'http://localhost:5174',
+    href: 'http://localhost:5174',
+  },
+  writable: true,
+})
 
-// Mock IntersectionObserver
-;(globalThis as unknown as { IntersectionObserver: unknown }).IntersectionObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}))
+// Mock TextEncoder/TextDecoder (needed for some libraries)
+global.TextEncoder = TextEncoder as any
+global.TextDecoder = TextDecoder as any
 
-// Mock matchMedia
+// Mock matchMedia (needed for responsive features)
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
-  value: vi.fn().mockImplementation((query: string) => ({
+  value: vi.fn().mockImplementation((query) => ({
     matches: false,
     media: query,
     onchange: null,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
+    addListener: vi.fn(), // deprecated
+    removeListener: vi.fn(), // deprecated
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
   })),
 })
+
+// Mock scrollTo
+window.scrollTo = vi.fn()
+
+// Mock confirm dialog
+window.confirm = vi.fn().mockReturnValue(true)
+
+// Clear localStorage before each test
+beforeEach(() => {
+  localStorageMock.clear()
+})
+
+// Start MSW server before all tests
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
+
+// Reset MSW handlers and clear mocks after each test
+afterEach(() => {
+  server.resetHandlers()
+  localStorageMock.clear()
+  vi.clearAllMocks()
+})
+
+// Stop MSW server after all tests
+afterAll(() => server.close())

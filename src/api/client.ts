@@ -387,7 +387,7 @@ export const pulpApi = {
   getWorker: (href: string) => apiRequest(sanitizeHref(href)),
 
   // Orphans - no GET endpoint, only cleanup via POST
-  getOrphans: (_params?: Record<string, string | number | boolean | undefined>) =>
+  getOrphans: () =>
     // Orphans API doesn't support GET listing, return empty result
     Promise.resolve({ count: 0, next: null, previous: null, results: [] }),
 
@@ -616,7 +616,7 @@ export const pulpApi = {
       ({ count: 0, next: null, previous: null, results: [] })
     ),
 
-  assignRoleToUser: (data: { user: string; role: string }) =>
+  assignRoleToUser: (data: { user: string; role: string; content_object?: string }) =>
     apiRequest('/user_roles/', { method: 'POST', body: JSON.stringify(data) }),
 
   revokeRoleFromUser: (href: string) =>
@@ -628,7 +628,7 @@ export const pulpApi = {
       ({ count: 0, next: null, previous: null, results: [] })
     ),
 
-  assignRoleToGroup: (data: { group: string; role: string }) =>
+  assignRoleToGroup: (data: { group: string; role: string; content_object?: string }) =>
     apiRequest('/group_roles/', { method: 'POST', body: JSON.stringify(data) }),
 
   revokeRoleFromGroup: (href: string) =>

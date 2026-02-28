@@ -73,6 +73,38 @@ export const handlers = [
     await delay(100)
     return HttpResponse.json(createMockTask(Date.now(), 'running'), { status: 202 })
   }),
+  // File Plugin - Repositories
+  http.post(`${API_BASE}/repositories/file/file/`, async ({ request }) => {
+    await delay(100)
+    const body = await request.json()
+    const newRepo = {
+      ...createMockRepository(Date.now()),
+      ...(body as object),
+    }
+    return HttpResponse.json(newRepo, { status: 201 })
+  }),
+
+  // File Plugin - Remotes
+  http.post(`${API_BASE}/remotes/file/file/`, async ({ request }) => {
+    await delay(100)
+    const body = await request.json()
+    const newRemote = {
+      ...createMockRemote(Date.now()),
+      ...(body as object),
+    }
+    return HttpResponse.json(newRemote, { status: 201 })
+  }),
+
+  // File Plugin - Distributions
+  http.post(`${API_BASE}/distributions/file/file/`, async ({ request }) => {
+    await delay(100)
+    const body = await request.json()
+    const newDist = {
+      ...createMockDistribution(Date.now()),
+      ...(body as object),
+    }
+    return HttpResponse.json(newDist, { status: 201 })
+  }),
 
   // Remotes
   http.get(`${API_BASE}/remotes/`, () => {
@@ -168,17 +200,17 @@ export const handlers = [
   }),
 
   // Content Guards - Certificate
-  http.get(`${API_BASE}/contentguards/certguard/`, () => {
+  http.get(`${API_BASE}/contentguards/certguard/x509/`, () => {
     const guards = [createMockCertGuard(1), createMockCertGuard(2)]
     return HttpResponse.json(paginated(guards))
   }),
 
-  http.get(`${API_BASE}/contentguards/certguard/:id/`, ({ params }) => {
+  http.get(`${API_BASE}/contentguards/certguard/x509/:id/`, ({ params }) => {
     const id = Number(params.id)
     return HttpResponse.json(createMockCertGuard(id))
   }),
 
-  http.post(`${API_BASE}/contentguards/certguard/`, async ({ request }) => {
+  http.post(`${API_BASE}/contentguards/certguard/x509/`, async ({ request }) => {
     await delay(100)
     const body = await request.json()
     const newGuard = {
@@ -188,22 +220,22 @@ export const handlers = [
     return HttpResponse.json(newGuard, { status: 201 })
   }),
 
-  http.delete(`${API_BASE}/contentguards/certguard/:id/`, () => {
+  http.delete(`${API_BASE}/contentguards/certguard/x509/:id/`, () => {
     return new HttpResponse(null, { status: 204 })
   }),
 
   // Content Guards - RBAC
-  http.get(`${API_BASE}/contentguards/rbac/`, () => {
+  http.get(`${API_BASE}/contentguards/core/rbac/`, () => {
     const guards = [createMockRBACGuard(1), createMockRBACGuard(2)]
     return HttpResponse.json(paginated(guards))
   }),
 
-  http.get(`${API_BASE}/contentguards/rbac/:id/`, ({ params }) => {
+  http.get(`${API_BASE}/contentguards/core/rbac/:id/`, ({ params }) => {
     const id = Number(params.id)
     return HttpResponse.json(createMockRBACGuard(id))
   }),
 
-  http.post(`${API_BASE}/contentguards/rbac/`, async ({ request }) => {
+  http.post(`${API_BASE}/contentguards/core/rbac/`, async ({ request }) => {
     await delay(100)
     const body = await request.json()
     const newGuard = {
@@ -213,22 +245,38 @@ export const handlers = [
     return HttpResponse.json(newGuard, { status: 201 })
   }),
 
-  http.delete(`${API_BASE}/contentguards/rbac/:id/`, () => {
+  http.delete(`${API_BASE}/contentguards/core/rbac/:id/`, () => {
     return new HttpResponse(null, { status: 204 })
   }),
+  // Content Guards - General
+  http.get(`${API_BASE}/contentguards/`, () => {
+    const guards = [
+      ...[createMockCertGuard(1), createMockCertGuard(2)].map(guard => ({
+        ...guard,
+        pulp_type: 'core.contentguard',
+      })),
+      ...[createMockRBACGuard(1), createMockRBACGuard(2)].map(guard => ({
+        ...guard,
+        pulp_type: 'core.rbaccontentguard',
+      })),
+    ]
+    return HttpResponse.json(paginated(guards))
+  }),
 
-  // ACS (Alternate Content Sources)
-  http.get(`${API_BASE}/rpm/acs/`, () => {
+  // ACS (Alternate Content Sources) - RPM
+  http.get(`${API_BASE}/acs/rpm/rpm/`, () => {
     const acsList = [createMockACS(1), createMockACS(2)]
     return HttpResponse.json(paginated(acsList))
   }),
 
-  http.get(`${API_BASE}/file/acs/`, () => {
+  // ACS (Alternate Content Sources) - File
+  http.get(`${API_BASE}/acs/file/file/`, () => {
     const acsList = [createMockACS(1), createMockACS(2)]
     return HttpResponse.json(paginated(acsList))
   }),
 
-  http.post(`${API_BASE}/rpm/acs/`, async ({ request }) => {
+
+  http.post(`${API_BASE}/acs/rpm/rpm/`, async ({ request }) => {
     await delay(100)
     const body = await request.json()
     const newACS = {
@@ -238,15 +286,14 @@ export const handlers = [
     return HttpResponse.json(newACS, { status: 201 })
   }),
 
-  http.delete(`${API_BASE}/rpm/acs/:id/`, () => {
+  http.delete(`${API_BASE}/acs/rpm/rpm/:id/`, () => {
     return new HttpResponse(null, { status: 204 })
   }),
 
-  http.post(`${API_BASE}/rpm/acs/:id/refresh/`, async () => {
+  http.post(`${API_BASE}/acs/rpm/rpm/:id/refresh/`, async () => {
     await delay(100)
     return HttpResponse.json(createMockTask(Date.now(), 'running'), { status: 202 })
   }),
-
   // Signing Services
   http.get(`${API_BASE}/signing-services/`, () => {
     const services = [createMockSigningService(1), createMockSigningService(2)]
@@ -626,5 +673,124 @@ export const handlers = [
     await delay(100)
     // Cleanup spawns a task
     return HttpResponse.json(createMockTask(Date.now(), 'running'), { status: 202 })
+  }),
+
+  // User Role Assignments
+  http.get(`${API_BASE}/user_roles/`, () => {
+    const assignments = [
+      {
+        pulp_href: `${API_BASE}/user_roles/1/`,
+        pulp_created: new Date().toISOString(),
+        role: `${API_BASE}/roles/1/`,
+        user: `${API_BASE}/users/1/`,
+      },
+      {
+        pulp_href: `${API_BASE}/user_roles/2/`,
+        pulp_created: new Date().toISOString(),
+        role: `${API_BASE}/roles/2/`,
+        user: `${API_BASE}/users/2/`,
+      },
+      {
+        pulp_href: `${API_BASE}/user_roles/3/`,
+        pulp_created: new Date().toISOString(),
+        role: `${API_BASE}/roles/1/`,
+        user: `${API_BASE}/users/2/`,
+      },
+    ]
+    return HttpResponse.json(paginated(assignments))
+  }),
+
+  http.post(`${API_BASE}/user_roles/`, async ({ request }) => {
+    await delay(100)
+    const body = await request.json()
+    const newAssignment = {
+      pulp_href: `${API_BASE}/user_roles/${Date.now()}/`,
+      pulp_created: new Date().toISOString(),
+      role: body.role,
+      user: body.user,
+      content_object: body.content_object || null,
+    }
+    return HttpResponse.json(newAssignment, { status: 201 })
+  }),
+
+  http.delete(`${API_BASE}/user_roles/:id/`, () => {
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // Group Role Assignments
+  http.get(`${API_BASE}/group_roles/`, () => {
+    const assignments = [
+      {
+        pulp_href: `${API_BASE}/group_roles/1/`,
+        pulp_created: new Date().toISOString(),
+        role: `${API_BASE}/roles/1/`,
+        group: `${API_BASE}/groups/1/`,
+      },
+      {
+        pulp_href: `${API_BASE}/group_roles/2/`,
+        pulp_created: new Date().toISOString(),
+        role: `${API_BASE}/roles/2/`,
+        group: `${API_BASE}/groups/2/`,
+      },
+    ]
+    return HttpResponse.json(paginated(assignments))
+  }),
+
+  http.post(`${API_BASE}/group_roles/`, async ({ request }) => {
+    await delay(100)
+    const body = await request.json()
+    const newAssignment = {
+      pulp_href: `${API_BASE}/group_roles/${Date.now()}/`,
+      pulp_created: new Date().toISOString(),
+      role: body.role,
+      group: body.group,
+      content_object: body.content_object || null,
+    }
+    return HttpResponse.json(newAssignment, { status: 201 })
+  }),
+
+  http.delete(`${API_BASE}/group_roles/:id/`, () => {
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  // Users groups endpoint
+  http.post(`${API_BASE}/groups/:id/users/`, async ({ params, request }) => {
+    await delay(100)
+    const body = await request.json()
+    return HttpResponse.json({ username: body.username })
+  }),
+
+  http.delete(`${API_BASE}/groups/:id/users/:username/`, () => {
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.get(`${API_BASE}/groups/:id/users/`, ({ params }) => {
+    const id = Number(params.id)
+    const users = id === 1 ? [createMockUser(1), createMockUser(2)] : [createMockUser(3)]
+    return HttpResponse.json(paginated(users))
+  }),
+
+  // Users groups list
+  http.get(`${API_BASE}/users/:id/groups/`, ({ params }) => {
+    const id = Number(params.id)
+    const groups = id === 1 ? [createMockGroup(1)] : []
+    return HttpResponse.json(paginated(groups))
+  }),
+
+  // Permissions endpoint (extracted from roles)
+  http.get(`${API_BASE}/permissions/`, () => {
+    const permissions = [
+      { codename: 'core.view_repository', name: 'core.view_repository' },
+      { codename: 'core.change_repository', name: 'core.change_repository' },
+      { codename: 'core.delete_repository', name: 'core.delete_repository' },
+      { codename: 'core.add_repository', name: 'core.add_repository' },
+      { codename: 'core.view_remote', name: 'core.view_remote' },
+      { codename: 'core.change_remote', name: 'core.change_remote' },
+      { codename: 'core.delete_remote', name: 'core.delete_remote' },
+      { codename: 'core.add_remote', name: 'core.add_remote' },
+      { codename: 'file.view_filefilerepository', name: 'file.view_filefilerepository' },
+      { codename: 'file.change_filefilerepository', name: 'file.change_filefilerepository' },
+    ]
+    return HttpResponse.json(paginated(permissions))
   }),
 ]

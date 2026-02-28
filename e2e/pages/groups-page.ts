@@ -3,7 +3,7 @@ import { BasePage } from './base-page'
 
 export class GroupsPage extends BasePage {
   get path(): string {
-    return '/groups'
+    return '/access/groups'
   }
 
   protected get headingText(): string {

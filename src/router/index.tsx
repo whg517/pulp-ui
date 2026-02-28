@@ -14,10 +14,6 @@ import { PublicationsPage } from '@/pages/PublicationsPage'
 import { PublicationDetailPage } from '@/pages/PublicationDetailPage'
 import { WorkersPage } from '@/pages/WorkersPage'
 import { WorkerDetailPage } from '@/pages/WorkerDetailPage'
-import { UsersPage } from '@/pages/UsersPage'
-import { UserDetailPage } from '@/pages/UserDetailPage'
-import { GroupsPage } from '@/pages/GroupsPage'
-import { GroupDetailPage } from '@/pages/GroupDetailPage'
 import { DomainsPage } from '@/pages/DomainsPage'
 import { OrphansPage } from '@/pages/OrphansPage'
 import { UploadsPage } from '@/pages/UploadsPage'
@@ -26,13 +22,14 @@ import { ArtifactsPage } from '@/pages/ArtifactsPage'
 import { ArtifactDetailPage } from '@/pages/ArtifactDetailPage'
 import { ImportsPage } from '@/pages/ImportsPage'
 import { ExportsPage } from '@/pages/ExportsPage'
-import { RolesPage } from '@/pages/RolesPage'
-import { RoleDetailPage } from '@/pages/RoleDetailPage'
-import { AccessPoliciesPage } from '@/pages/AccessPoliciesPage'
 import { SchedulesPage } from '@/pages/SchedulesPage'
 import { ContentGuardsPage } from '@/pages/ContentGuardsPage'
 import { ACSPage } from '@/pages/ACSPage'
 import { SigningServicesPage } from '@/pages/SigningServicesPage'
+import { RolesPage } from '@/pages/RolesPage'
+import { AccessPoliciesPage } from '@/pages/AccessPoliciesPage'
+import { UsersPage } from '@/pages/UsersPage'
+import { GroupsPage } from '@/pages/GroupsPage'
 import { useAuthStore } from '@/stores/authStore'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -75,6 +72,10 @@ export const router = createBrowserRouter([
       {
         index: true,
         element: <DashboardPage />,
+      },
+      {
+        path: 'test',
+        element: <DashboardPage />
       },
       {
         path: 'repositories',
@@ -125,26 +126,6 @@ export const router = createBrowserRouter([
         element: <WorkerDetailPage />,
       },
       {
-        path: 'users',
-        element: <UsersPage />,
-      },
-      {
-        path: 'users/:href',
-        element: <UserDetailPage />,
-      },
-      {
-        path: 'groups',
-        element: <GroupsPage />,
-      },
-      {
-        path: 'groups/:href',
-        element: <GroupDetailPage />,
-      },
-      {
-        path: 'domains',
-        element: <DomainsPage />,
-      },
-      {
         path: 'orphans',
         element: <OrphansPage />,
       },
@@ -173,16 +154,8 @@ export const router = createBrowserRouter([
         element: <ExportsPage />,
       },
       {
-        path: 'roles',
-        element: <RolesPage />,
-      },
-      {
-        path: 'roles/:href',
-        element: <RoleDetailPage />,
-      },
-      {
-        path: 'access-policies',
-        element: <AccessPoliciesPage />,
+        path: 'domains',
+        element: <DomainsPage />,
       },
       {
         path: 'schedules',
@@ -199,6 +172,30 @@ export const router = createBrowserRouter([
       {
         path: 'signing-services',
         element: <SigningServicesPage />,
+      },
+      {
+        path: 'roles',
+        element: <RolesPage />,
+      },
+      {
+        path: 'access-policies',
+        element: <AccessPoliciesPage />,
+      },
+      {
+        path: 'access/users',
+        element: <UsersPage />,
+      },
+      {
+        path: 'access/groups',
+        element: <GroupsPage />,
+      },
+      {
+        path: 'access/roles',
+        element: <RolesPage />,
+      },
+      {
+        path: 'access/policies',
+        element: <AccessPoliciesPage />,
       },
     ],
   },
