@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 export function UploadFilePage() {
   const navigate = useNavigate()
 
-  const handleUploadComplete = (_artifactHref: string) => {
+  const handleUploadComplete = () => {
     toast.success('Upload complete', {
       description: 'File has been successfully uploaded as an artifact.',
     })

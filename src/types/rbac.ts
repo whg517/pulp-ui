@@ -19,8 +19,7 @@ export interface PulpRoleAssignment {
   pulp_href: string
   pulp_created: string
   role: string // role href
-  content_object: string // user or group href
-  object_id: string
+  content_object?: string // href of the specific object (repository, remote, etc.) for object-level assignments
 }
 
 // User Role Assignment - role assigned directly to a user
@@ -29,8 +28,7 @@ export interface PulpUserRole {
   pulp_created: string
   role: string // role href
   user: string // user href
-}
-
+  }
 // Group Role Assignment - role assigned to a group
 export interface PulpGroupRole {
   pulp_href: string

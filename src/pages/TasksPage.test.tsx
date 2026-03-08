@@ -5,16 +5,20 @@ import { renderWithProviders } from '@/test/utils'
 import { http, HttpResponse } from 'msw'
 import { server } from '@/test/mocks/server'
 
-const originalConfirm = window.confirm
+let originalConfirm: typeof window.confirm
 
 describe('TasksPage', () => {
   beforeEach(() => {
     localStorage.clear()
+    // Store original confirm and mock it
+    originalConfirm = window.confirm
     window.confirm = vi.fn(() => true)
+
   })
 
   afterEach(() => {
-    window.confirm = originalConfirm
+    // Restore original confirm
+
   })
 
   it('renders page title and description', () => {

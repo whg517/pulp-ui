@@ -5,7 +5,7 @@ import type { PulpAPIClient } from './api.js'
 let repositoryCounter = 0
 let remoteCounter = 0
 let distributionCounter = 0
-let artifactCounter = 0
+const artifactCounter = 0
 
 /**
  * Generate a unique name for test entities
